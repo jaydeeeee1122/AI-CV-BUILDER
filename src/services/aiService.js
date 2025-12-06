@@ -193,3 +193,138 @@ export const testApiKey = async (apiKey) => {
         throw new Error(error.message);
     }
 };
+
+export const analyzeCV = async (cvText, jobDescription, apiKey) => {
+    if (!apiKey) throw new Error("API Key is required for analysis");
+    if (!jobDescription) throw new Error("Job Description is required");
+
+    const trimmedKey = apiKey.trim();
+    const modelName = await findBestModel(trimmedKey);
+    const genAI = new GoogleGenerativeAI(trimmedKey);
+    const model = genAI.getGenerativeModel({ model: modelName });
+
+    let promptParts = [];
+
+    const systemPrompt = `You are an expert ATS (Applicant Tracking System) and Technical Recruiter. 
+    Compare the provided CV content against the Job Description.
+    
+    Output a JSON object with the following structure (do NOT use markdown code blocks, just raw JSON):
+    {
+        "score": number (0-100),
+        "missingKeywords": ["keyword1", "keyword2"],
+        "recommendations": ["rec1", "rec2"],
+        "tailoredSummary": "A rewritten professional summary for the CV that targets this specific job."
+    }
+    
+    CV Content:
+    "${cvText}"
+    `;
+
+    promptParts.push(systemPrompt);
+
+    if (jobDescription.type === 'image') {
+        // Handle Image JD
+        // Remove header if present (e.g., "data:image/jpeg;base64,")
+        const base64Data = jobDescription.content.split(',')[1];
+        promptParts.push({
+            inlineData: {
+                data: base64Data,
+                mimeType: "image/jpeg" // We'll assume jpeg/png is compatible
+            }
+        });
+        promptParts.push("\nJob Description is provided in the image above.");
+    } else {
+        // Handle Text JD
+        promptParts.push(`\nJob Description:\n"${jobDescription.content}"`);
+    }
+
+    try {
+        const result = await model.generateContent(promptParts);
+        const response = await result.response;
+        const text = response.text();
+
+        // Clean up markdown if present
+        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanText);
+    } catch (error) {
+        console.error("Analysis Error:", error);
+        throw new Error("Failed to analyze CV. " + error.message);
+    }
+};
+
+export const rewriteCV = async (cvText, jobDescription, apiKey) => {
+    if (!apiKey) throw new Error("API Key is required for rewrite");
+
+    const trimmedKey = apiKey.trim();
+    const modelName = await findBestModel(trimmedKey);
+    const genAI = new GoogleGenerativeAI(trimmedKey);
+    const model = genAI.getGenerativeModel({ model: modelName });
+
+    let promptParts = [];
+
+    const systemPrompt = `You are an expert Professional CV Writer. 
+    Rewrite the provided CV content to perfectly target the Job Description.
+    
+    CRITICAL: You must return a VALID JSON object that matches this EXACT structure. Do not change the structure keys.
+    
+    {
+        "personal": {
+            "fullName": "Keep original",
+            "email": "Keep original",
+            "phone": "Keep original",
+            "summary": "REWRITE THIS: A powerful, keyword-rich professional summary targeting the job."
+        },
+        "experience": [
+            {
+                "id": 1,
+                "title": "Keep original or optimize",
+                "company": "Keep original",
+                "startDate": "Keep original",
+                "endDate": "Keep original",
+                "description": "REWRITE THIS: Use bullet points (•). Focus on achievements and metrics relevant to the JD. Use action verbs."
+            }
+            // ... include all experiences from the input CV
+        ],
+        "education": [
+            {
+                "id": 1,
+                "degree": "Keep original",
+                "school": "Keep original",
+                "year": "Keep original"
+            }
+             // ... include all education from the input CV
+        ]
+    }
+
+    CV Content to Rewrite:
+    "${cvText}"
+    `;
+
+    promptParts.push(systemPrompt);
+
+    if (jobDescription.type === 'image') {
+        const base64Data = jobDescription.content.split(',')[1];
+        promptParts.push({
+            inlineData: {
+                data: base64Data,
+                mimeType: "image/jpeg"
+            }
+        });
+        promptParts.push("\nTarget Job Description is provided in the image above.");
+    } else {
+        promptParts.push(`\nTarget Job Description:\n"${jobDescription.content}"`);
+    }
+
+    try {
+        const result = await model.generateContent(promptParts);
+        const response = await result.response;
+        const text = response.text();
+
+        // Clean up markdown if present
+        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanText);
+    } catch (error) {
+        console.error("Rewrite Error:", error);
+        throw new Error("Failed to rewrite CV. " + error.message);
+    }
+};

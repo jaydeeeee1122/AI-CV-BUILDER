@@ -12,6 +12,8 @@ export const useCV = () => {
 
 export const CVProvider = ({ children }) => {
     const [apiKey, setApiKey] = useState('');
+    const [jobDescription, setJobDescription] = useState(null); // { type: 'text' | 'image', content: string, fileName: string }
+    const [aiRecommendations, setAiRecommendations] = useState(null);
 
     const [cvData, setCvData] = useState({
         personal: {
@@ -83,7 +85,6 @@ export const CVProvider = ({ children }) => {
         }));
     };
 
-    // Similar functions for Education can be added here
     const addEducation = () => {
         setCvData((prev) => ({
             ...prev,
@@ -119,8 +120,13 @@ export const CVProvider = ({ children }) => {
         <CVContext.Provider
             value={{
                 cvData,
+                setCvData, // Expose this to allow full overwrite
                 apiKey,
                 setApiKey,
+                jobDescription,
+                setJobDescription,
+                aiRecommendations,
+                setAiRecommendations,
                 updatePersonal,
                 addExperience,
                 updateExperience,
