@@ -1,0 +1,154 @@
+.preview-container {
+    background: var(--border);
+    padding: 2rem;
+    border-radius: var(--radius);
+    display: flex;
+    justify-content: center;
+    overflow: auto;
+}
+
+.cv-paper {
+    background: white;
+    width: 210mm;
+    min-height: 297mm;
+    display: flex;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    color: #1e293b;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.cv-sidebar {
+    width: 30%;
+    background-color: #0f172a;
+    color: white;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.cv-sidebar h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.cv-sidebar h3 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1rem;
+    color: #94a3b8;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 0.5rem;
+}
+
+.contact-item {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+    word-break: break-all;
+}
+
+.sidebar-item {
+    margin-bottom: 1.5rem;
+}
+
+.item-degree {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.item-school {
+    font-size: 0.875rem;
+    color: #cbd5e1;
+}
+
+.item-date {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 0.25rem;
+}
+
+/* Main Content */
+.cv-main {
+    width: 70%;
+    padding: 3rem;
+}
+
+.main-section {
+    margin-bottom: 2.5rem;
+}
+
+.main-section h3 {
+    font-size: 1.1rem;
+    color: #0f172a;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.summary-text {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: #334155;
+}
+
+.main-item {
+    margin-bottom: 1.5rem;
+}
+
+.item-header {
+    margin-bottom: 0.5rem;
+}
+
+.item-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #0f172a;
+    display: block;
+}
+
+.item-date-range {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.item-description {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #334155;
+    white-space: pre-line;
+}
+
+@media print {
+
+    .app-layout,
+    .header,
+    .footer,
+    .editor-section {
+        display: none;
+    }
+
+    .main-content,
+    .container,
+    .cv-builder-grid,
+    .preview-section,
+    .preview-container {
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        display: block;
+        background: white;
+    }
+
+    .cv-paper {
+        box-shadow: none;
+        width: 100%;
+        min-height: 100vh;
+        margin: 0;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+}
