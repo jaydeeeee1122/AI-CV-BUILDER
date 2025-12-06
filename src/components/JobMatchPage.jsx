@@ -98,23 +98,37 @@ export const JobMatchPage = ({ onNavigate }) => {
     };
 
     return (
-        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <h1 style={{ textAlign: 'center', marginBottom: '2rem', color: '#333' }}>🎯 Job Match & ATS Analysis</h1>
+        <div className="container">
+            <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', background: 'linear-gradient(to right, var(--text-main), var(--primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    Job Match Analysis
+                </h2>
+                <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>
+                    Upload your CV and a Job Description to get an ATS match score and recommendations.
+                </p>
+            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 {/* Left Column: CV Upload */}
-                <div className="card" style={{ padding: '1.5rem', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ marginBottom: '1rem', color: '#444' }}>1. Upload Your CV</h2>
+                <div className="glass-panel" style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', color: 'var(--primary)' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 'bold' }}>1</div>
+                        <h3>Your CV</h3>
+                    </div>
+
                     <div
                         style={{
-                            border: '2px dashed #ccc',
-                            borderRadius: '8px',
-                            padding: '3rem',
+                            border: '2px dashed var(--border)',
+                            borderRadius: 'var(--radius)',
+                            padding: '3rem 1rem',
                             textAlign: 'center',
                             cursor: 'pointer',
-                            backgroundColor: cvFileName ? '#f0fdf4' : '#f9f9f9',
-                            borderColor: cvFileName ? '#22c55e' : '#ccc'
+                            backgroundColor: cvFileName ? 'rgba(240, 253, 244, 0.5)' : 'var(--background)',
+                            borderColor: cvFileName ? '#22c55e' : 'var(--border)',
+                            transition: 'all 0.2s',
                         }}
+                        onMouseEnter={(e) => !cvFileName && (e.currentTarget.style.borderColor = 'var(--primary)')}
+                        onMouseLeave={(e) => !cvFileName && (e.currentTarget.style.borderColor = 'var(--border)')}
                         onClick={() => fileInputRef.current.click()}
                     >
                         <input
@@ -124,21 +138,26 @@ export const JobMatchPage = ({ onNavigate }) => {
                             accept=".pdf"
                             onChange={handleCVUpload}
                         />
-                        <span style={{ fontSize: '3rem' }}>{cvFileName ? '✅' : '📄'}</span>
-                        <p style={{ marginTop: '1rem', fontWeight: 'bold' }}>
-                            {cvFileName || "Click to Upload CV (PDF)"}
+                        <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>
+                            {cvFileName ? '✅' : '📄'}
+                        </span>
+                        <p style={{ fontWeight: '600', color: cvFileName ? '#166534' : 'var(--text-main)' }}>
+                            {cvFileName || "Click to Upload PDF CV"}
                         </p>
                     </div>
                     {cvText && (
-                        <div style={{ marginTop: '1rem' }}>
-                            <p style={{ fontSize: '0.8rem', color: '#666' }}>Text extracted successfully ({cvText.length} chars).</p>
+                        <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.875rem', color: '#166534', fontWeight: '500' }}>✓ Text extracted successfully</p>
                         </div>
                     )}
                 </div>
 
                 {/* Right Column: JD Upload */}
-                <div className="card" style={{ padding: '1.5rem', background: 'white', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ marginBottom: '1rem', color: '#444' }}>2. Job Description</h2>
+                <div className="glass-panel" style={{ padding: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', color: 'var(--primary)' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: 'bold' }}>2</div>
+                        <h3>Job Description</h3>
+                    </div>
                     <JobDescriptionUpload />
                 </div>
             </div>
@@ -152,33 +171,35 @@ export const JobMatchPage = ({ onNavigate }) => {
                     style={{
                         padding: '1rem 3rem',
                         fontSize: '1.2rem',
-                        borderRadius: '50px',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                        borderRadius: '99px',
+                        boxShadow: 'var(--shadow-lg)'
                     }}
                 >
-                    {isAnalyzing ? 'Analyzing...' : '🔍 Analyze Match Score'}
+                    {isAnalyzing ? 'Analyzing Match...' : '🚀 Analyze Match Score'}
                 </button>
             </div>
 
             {/* Results Section */}
             {aiRecommendations && (
-                <div className="analysis-results" style={{ padding: '2rem', background: 'white', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid #eee', paddingBottom: '1rem' }}>
-                        <h2 style={{ margin: 0 }}>Analysis Results</h2>
+                <div className="glass-panel" style={{ padding: '2.5rem', animation: 'fadeIn 0.5s ease-out', marginTop: '2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
+                        <h2 style={{ margin: 0, fontSize: '1.75rem' }}>Analysis Results</h2>
                         <div style={{ textAlign: 'right' }}>
-                            <span style={{ fontSize: '1rem', color: '#666', display: 'block' }}>ATS Score</span>
-                            <span style={{ fontSize: '3rem', fontWeight: 'bold', color: aiRecommendations.score > 70 ? '#22c55e' : '#f97316' }}>
-                                {aiRecommendations.score}/100
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600' }}>ATS Score</span>
+                            <span style={{ fontSize: '4rem', fontWeight: '800', color: aiRecommendations.score > 70 ? '#10b981' : '#f59e0b', lineHeight: 1 }}>
+                                {aiRecommendations.score}
                             </span>
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '3rem' }}>
                         <div>
-                            <h3 style={{ color: '#ef4444', marginBottom: '1rem' }}>⚠️ Missing Keywords</h3>
+                            <h3 style={{ color: '#ef4444', marginBottom: '1.25rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                ⚠️ Missing Keywords
+                            </h3>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                 {aiRecommendations.missingKeywords?.map((kw, i) => (
-                                    <span key={i} style={{ background: '#fee2e2', color: '#991b1b', padding: '0.5rem 1rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: '500' }}>
+                                    <span key={i} style={{ background: '#fee2e2', color: '#991b1b', padding: '0.5rem 1rem', borderRadius: '99px', fontSize: '0.9rem', fontWeight: '500' }}>
                                         {kw}
                                     </span>
                                 ))}
@@ -186,49 +207,50 @@ export const JobMatchPage = ({ onNavigate }) => {
                         </div>
 
                         <div>
-                            <h3 style={{ color: '#3b82f6', marginBottom: '1rem' }}>💡 Recommendations</h3>
-                            <ul style={{ paddingLeft: '1.5rem', lineHeight: '1.6' }}>
+                            <h3 style={{ color: '#3b82f6', marginBottom: '1.25rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                💡 AI Recommendations
+                            </h3>
+                            <ul style={{ paddingLeft: '1.25rem', lineHeight: '1.7', color: 'var(--text-main)' }}>
                                 {aiRecommendations.recommendations?.map((rec, i) => (
-                                    <li key={i} style={{ marginBottom: '0.5rem' }}>{rec}</li>
+                                    <li key={i} style={{ marginBottom: '0.75rem' }}>{rec}</li>
                                 ))}
                             </ul>
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '2rem', background: '#f8fafc', padding: '1.5rem', borderRadius: '8px' }}>
-                        <h3 style={{ color: '#475569', marginBottom: '1rem' }}>✨ Tailored Professional Summary</h3>
-                        <p style={{ fontStyle: 'italic', color: '#334155', lineHeight: '1.6', fontSize: '1.1rem' }}>
+                    <div style={{ marginTop: '3rem', background: 'rgba(255,255,255,0.6)', padding: '2rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>✨ Tailored Professional Summary</h3>
+                            <button
+                                className="btn btn-sm btn-outline"
+                                onClick={() => navigator.clipboard.writeText(aiRecommendations.tailoredSummary)}
+                            >
+                                Copy
+                            </button>
+                        </div>
+                        <p style={{ fontStyle: 'italic', color: '#334155', lineHeight: '1.8', fontSize: '1.1rem' }}>
                             "{aiRecommendations.tailoredSummary}"
                         </p>
-                        <button
-                            className="btn btn-sm btn-outline"
-                            style={{ marginTop: '1rem' }}
-                            onClick={() => navigator.clipboard.writeText(aiRecommendations.tailoredSummary)}
-                        >
-                            Copy to Clipboard
-                        </button>
                     </div>
 
                     {/* Rewrite Button */}
-                    <div style={{ marginTop: '3rem', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '2rem' }}>
-                        <h3 style={{ marginBottom: '1rem' }}>🚀 Ready to Apply?</h3>
-                        <p style={{ marginBottom: '1.5rem', color: '#666' }}>
-                            Let AI rewrite your entire CV (Summary & Experience) to perfectly match this job description.
+                    <div style={{ marginTop: '4rem', textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: '3rem' }}>
+                        <h3 style={{ marginBottom: '1rem' }}>Ready to optimize?</h3>
+                        <p style={{ marginBottom: '2rem', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto 2rem auto' }}>
+                            Let AI automatically rewrite your CV content (Summary & Experience) to perfectly target this job description and improve your ATS score.
                         </p>
                         <button
                             className="btn btn-primary"
                             onClick={handleRewrite}
                             disabled={isRewriting}
                             style={{
-                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-                                padding: '1rem 2rem',
+                                background: 'linear-gradient(135deg, var(--primary) 0%, #a855f7 100%)',
+                                padding: '1rem 2.5rem',
                                 fontSize: '1.1rem',
-                                border: 'none',
-                                color: 'white',
-                                cursor: 'pointer'
+                                boxShadow: '0 4px 15px rgba(79, 70, 229, 0.4)'
                             }}
                         >
-                            {isRewriting ? '✨ Rewriting CV...' : '✨ Rewrite My CV for this Job'}
+                            {isRewriting ? '✨ Rewriting CV...' : '✨ Auto-Rewrite CV'}
                         </button>
                     </div>
                 </div>

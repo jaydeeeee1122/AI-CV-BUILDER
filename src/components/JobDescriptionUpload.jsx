@@ -62,23 +62,27 @@ export const JobDescriptionUpload = () => {
     };
 
     return (
-        <div className="editor-section-group">
-            <h3>Job Description</h3>
-            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '1rem' }}>
-                Upload a Job Description (PDF, Image) or paste text to get tailored recommendations.
+        <div className="glass-panel" style={{ padding: '2rem', background: 'rgba(255,255,255,0.5)' }}>
+            <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>📄</span> Job Description
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                Upload PDF/Image or paste text to get tailored analysis.
             </p>
 
             <div className="form-group">
                 <div
                     style={{
-                        border: '2px dashed #ccc',
-                        borderRadius: '8px',
-                        padding: '2rem',
+                        border: '2px dashed var(--border)',
+                        borderRadius: 'var(--radius)',
+                        padding: '1.5rem',
                         textAlign: 'center',
                         cursor: 'pointer',
-                        backgroundColor: '#f9f9f9',
-                        marginBottom: '1rem'
+                        background: 'var(--background)',
+                        transition: 'all 0.2s',
                     }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                     onClick={() => fileInputRef.current.click()}
                 >
                     <input
@@ -89,24 +93,23 @@ export const JobDescriptionUpload = () => {
                         onChange={handleFileUpload}
                     />
                     {loading ? (
-                        <span>Processing...</span>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--primary)' }}>Processing...</span>
                     ) : (
-                        <div>
-                            <span style={{ fontSize: '2rem' }}>📄</span>
-                            <p>{fileName || "Click to Upload PDF or Image"}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+                            <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>{fileName || "Upload File"}</span>
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="form-group">
-                <label>Or Paste Text</label>
+            <div className="form-group" style={{ marginBottom: 0 }}>
                 <textarea
                     className="form-textarea"
-                    rows="6"
-                    placeholder="Paste job description text here..."
+                    rows="4"
+                    placeholder="Or paste job description here..."
                     value={jobDescription?.type === 'text' ? jobDescription.content : ''}
                     onChange={(e) => setJobDescription({ type: 'text', content: e.target.value, fileName: 'Manual Entry' })}
+                    style={{ resize: 'vertical', fontSize: '0.875rem', background: 'white' }}
                 />
             </div>
         </div>
