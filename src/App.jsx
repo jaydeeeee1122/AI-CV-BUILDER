@@ -1,143 +1,180 @@
-import React, { useState } from 'react';
-import { Layout } from './components/Layout';
-import { CVProvider } from './context/CVContext';
-import { Editor } from './components/Editor';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { CVProvider, useCV } from './context/CVContext';
+import Editor from './components/Editor';
 import { Preview } from './components/Preview';
-import { Modal } from './components/Modal';
-import { JobMatchPage } from './components/JobMatchPage';
-import { supabase } from './lib/supabase';
+import { LandingPage } from './components/LandingPage';
 import { Auth } from './components/Auth';
+import { JobTracker } from './components/JobTracker';
+import { JobMatchPage } from './components/JobMatchPage';
+import { CoverLetterPage } from './components/CoverLetterPage';
+import { PublicCVViewer } from './components/PublicCVViewer';
+import { Dashboard } from './components/Dashboard'; // Import Dashboard
+import { CreditDisplay } from './components/CreditDisplay';
+import { buyCredits } from './services/stripeService';
+import { supabase } from './lib/supabase';
+import { TemplateSelector } from './components/templates/TemplateSelector'; // Import TemplateSelector
 import './App.css';
 
-function App() {
+const Layout = ({ children }) => (
+  <main className="container" style={{ padding: '2rem 0', flex: 1 }}>
+    {children}
+  </main>
+);
+
+// Main App Component (Authenticated View)
+const MainApp = ({ user }) => {
+  const [activePage, setActivePage] = useState('dashboard');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [activePage, setActivePage] = useState('builder'); // 'builder' | 'job-match' | 'auth'
-  const [session, setSession] = useState(null);
-
-  React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session && activePage === 'auth') {
-        setActivePage('builder');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [activePage]);
+  const { activeTemplate, setActiveTemplate } = useCV();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setSession(null);
-    setActivePage('auth');
+    window.location.reload();
   };
 
   return (
-    <CVProvider>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* App Navbar */}
+      <nav className="glass-panel" style={{ borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0, marginBottom: 0 }}>
+        <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '70px' }}>
+          <div
+            className="logo"
+            style={{ fontSize: '1.25rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            onClick={() => setActivePage('dashboard')}
+          >
+            <span style={{ fontSize: '1.5rem' }}>📄</span> CV Builder
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            {/* Navigation Links (Desktop) */}
+            <div className="nav-links" style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setActivePage('dashboard')} className={`btn btn-ghost ${activePage === 'dashboard' ? 'active' : ''}`}>Dashboard</button>
+              <button onClick={() => setActivePage('editor')} className={`btn btn-ghost ${activePage === 'editor' ? 'active' : ''}`}>Editor</button>
+              <button onClick={() => setActivePage('tracker')} className={`btn btn-ghost ${activePage === 'tracker' ? 'active' : ''}`}>Jobs</button>
+            </div>
+
+            <div style={{ width: '1px', height: '20px', background: '#ccc' }}></div>
+
+            {/* User Actions */}
+            <CreditDisplay userId={user?.id} />
+            <button onClick={buyCredits} className="btn btn-sm btn-primary">Buy Credits</button>
+            <button onClick={handleLogout} className="btn btn-sm btn-ghost">Log Out</button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content Area */}
       <Layout>
-        {/* Navigation Bar */}
-        <nav className="glass-panel" style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '1rem 2rem',
-          marginBottom: '2rem',
-          position: 'sticky',
-          top: '1rem',
-          zIndex: 10
-        }}>
-          <h1 style={{ fontSize: '1.5rem', margin: 0, background: 'linear-gradient(to right, var(--primary), #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            AI CV Builder
-          </h1>
-
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button
-              className={`btn ${activePage === 'builder' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setActivePage('builder')}
-            >
-              📝 Builder
-            </button>
-            <button
-              className={`btn ${activePage === 'job-match' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => {
-                if (!session) {
-                  setActivePage('auth');
-                } else {
-                  setActivePage('job-match');
-                }
-              }}
-            >
-              🎯 Job Match
-            </button>
-
-            {!session ? (
-              <button
-                className={`btn ${activePage === 'auth' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setActivePage('auth')}
-              >
-                🔐 Login
-              </button>
-            ) : (
-              <button
-                className="btn btn-ghost"
-                onClick={handleLogout}
-                style={{ color: '#ef4444' }}
-              >
-                Logout
-              </button>
-            )}
-          </div>
-        </nav>
-
-        {activePage === 'auth' ? (
-          <div style={{ minHeight: '60vh' }}>
-            <Auth onAuthSuccess={() => setActivePage('builder')} />
-          </div>
-        ) : activePage === 'builder' ? (
+        {activePage === 'dashboard' ? (
+          <Dashboard onNavigate={setActivePage} />
+        ) : activePage === 'editor' ? (
           <div className="cv-builder-grid">
-            <div className="editor-section glass-panel" style={{ padding: '2rem', height: 'fit-content' }}>
-              <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
-                <h2>Editor</h2>
-                <p style={{ fontSize: '0.875rem' }}>Refine your professional details below.</p>
-              </div>
+            <div className={`editor-section ${isPreviewOpen ? 'hidden-mobile' : 'visible-mobile'}`}>
               <Editor />
             </div>
 
-            <div className="preview-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2 style={{ color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>Live Preview</h2>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setIsPreviewOpen(true)}
-                >
-                  Full Screen
-                </button>
-              </div>
-              <div style={{
-                transform: 'scale(0.85)',
-                transformOrigin: 'top center',
-                boxShadow: 'var(--shadow-lg)',
-                borderRadius: 'var(--radius)',
-                overflow: 'hidden'
-              }}>
-                <Preview />
+            <div className={`preview-section ${isPreviewOpen ? 'visible-mobile' : 'hidden-mobile'}`}>
+              <div sticky="true" style={{ position: 'sticky', top: '2rem' }}>
+                <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>Live Preview</h2>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <TemplateSelector activeTemplate={activeTemplate} onSelect={setActiveTemplate} />
+                    <button className="btn btn-sm btn-outline" onClick={() => setIsPreviewOpen(false)}>
+                      Actual Size
+                    </button>
+                  </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', minHeight: '600px', display: 'flex', justifyContent: 'center', background: '#525659' }}>
+                  {/* Dark background for preview area like a PDF viewer */}
+                  <Preview />
+                </div>
               </div>
             </div>
+
+            {/* Mobile Toggle */}
+            <button
+              className="mobile-preview-toggle"
+              onClick={() => setIsPreviewOpen(!isPreviewOpen)}
+            >
+              {isPreviewOpen ? '✏️ Edit' : '👁️ Preview'}
+            </button>
           </div>
-        ) : (
-          <div className="glass-panel" style={{ padding: '2rem' }}>
+        ) : activePage === 'tracker' ? (
+          <JobTracker />
+        ) : activePage === 'match' ? (
+          <div className="glass-panel p-6">
             <JobMatchPage onNavigate={setActivePage} />
           </div>
-        )}
-
-        <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)}>
-          <Preview />
-        </Modal>
+        ) : activePage === 'cover-letter' ? (
+          <CoverLetterPage />
+        ) : null}
       </Layout>
-    </CVProvider>
+    </div>
+  );
+};
+
+
+// Main App Component that provides Context and handles routing
+function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      setLoading(false);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      setLoading(false);
+    }).catch(() => {
+      console.warn("Auth session check failed (likely due to missing keys). Defaulting to guest.");
+      setLoading(false);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'gray' }}>Loading App...</div>
+    </div>
+  );
+
+  return (
+    <Router>
+      <CVProvider>
+        <Routes>
+          <Route path="/" element={
+            user ? <MainApp user={user} /> : (
+              showAuth ? (
+                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+                  <nav style={{ padding: '1.5rem 0' }}>
+                    <div className="container">
+                      <button onClick={() => setShowAuth(false)} className="btn btn-ghost">← Back to Home</button>
+                    </div>
+                  </nav>
+                  <Auth onAuthSuccess={() => window.location.reload()} />
+                </div>
+              ) : (
+                <LandingPage
+                  onGetStarted={() => setShowAuth(true)}
+                  onLogin={() => setShowAuth(true)}
+                />
+              )
+            )
+          } />
+          <Route path="/view/:id" element={<PublicCVViewer />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </CVProvider>
+    </Router>
   );
 }
 

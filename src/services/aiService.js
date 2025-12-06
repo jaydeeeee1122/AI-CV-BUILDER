@@ -52,3 +52,8 @@ export const analyzeCV = async (cvText, jobDescription, apiKey) => {
 export const rewriteCV = async (cvText, jobDescription, apiKey) => {
     return callApi('/api/rewrite-cv', { cvText, jobDescription });
 };
+
+export const generateCoverLetter = async (userData, jobDescription) => {
+    // userData should be the cvData object from context
+    return callApi('/api/generate-cover-letter', { userData, jobDescription });
+};

@@ -11,13 +11,22 @@ const __dirname = path.dirname(__filename);
 
 import rateLimit from 'express-rate-limit';
 
-
 dotenv.config();
 
 const app = express();
 const port = 3000;
 
-// Rate Limiter: 100 requests per 15 minutes per IP
+// Initialize Supabase Admin Client
+import { createClient } from '@supabase/supabase-js';
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Initialize Stripe
+import Stripe from 'stripe';
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Rate Limiter
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -25,8 +34,6 @@ const limiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
-
-// Apply rate limiting to all requests
 app.use(limiter);
 
 app.use(cors());
@@ -35,31 +42,73 @@ app.use(express.static(path.join(__dirname, 'dist')));
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
-// Check if API key is present
 if (!API_KEY) {
     console.warn("WARNING: GEMINI_API_KEY is not set in .env file");
 }
 
 const findBestModel = async (apiKey) => {
-    // Default to Flash for speed and cost-effectiveness
-    return "gemini-1.5-flash";
+    return "gemini-2.0-flash";
 };
 
-// --- Routes ---
+// --- STRIPE ROUTES ---
 
-// Health Check
+app.post('/api/create-checkout-session', async (req, res) => {
+    try {
+        const { priceId, userId, successUrl, cancelUrl } = req.body;
+
+        const session = await stripe.checkout.sessions.create({
+            mode: 'payment',
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'usd',
+                        product_data: {
+                            name: '50 AI Credits',
+                            description: 'Credits for CV Analysis and Rewrites',
+                        },
+                        unit_amount: 500,
+                    },
+                    quantity: 1,
+                },
+            ],
+            metadata: {
+                userId: userId,
+            },
+            success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: cancelUrl,
+        });
+
+        res.json({ url: session.url });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/mock-payment-success', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        console.log(`💰 MOCK PAYMENT: Added 50 credits to user ${userId}`);
+        res.json({ success: true, message: "Credits added (Mock)" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- AI ROUTES (Using gemini-2.0-flash) ---
+
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Enhance Text
 app.post('/api/enhance', async (req, res) => {
     try {
         const { text, instructions } = req.body;
         if (!API_KEY) throw new Error("Server missing API Key");
 
         const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         let prompt = "";
         if (instructions && instructions.trim() !== "") {
@@ -84,14 +133,14 @@ app.post('/api/enhance', async (req, res) => {
     }
 });
 
-// Analyze CV (Job Match)
 app.post('/api/analyze-cv', async (req, res) => {
     try {
+        console.log("Analyze-CV Request for Model: gemini-2.0-flash");
         const { cvText, jobDescription } = req.body;
         if (!API_KEY) throw new Error("Server missing API Key");
 
         const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         let promptParts = [];
         const systemPrompt = `You are an expert ATS (Applicant Tracking System) and Technical Recruiter. 
@@ -127,7 +176,6 @@ app.post('/api/analyze-cv', async (req, res) => {
         const response = await result.response;
         let text = response.text();
 
-        // Clean markdown
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
         res.json(JSON.parse(text));
@@ -138,36 +186,42 @@ app.post('/api/analyze-cv', async (req, res) => {
     }
 });
 
-// Rewrite CV
 app.post('/api/rewrite-cv', async (req, res) => {
     try {
         const { cvText, jobDescription } = req.body;
         if (!API_KEY) throw new Error("Server missing API Key");
 
         const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         let promptParts = [];
-        const systemPrompt = `You are an expert Professional CV Writer. 
-        Rewrite the provided CV content to perfectly target the Job Description.
+        const systemPrompt = `You are an expert Professional CV Writer & ATS Optimizer. 
+        Your GOAL is to rewrite the CV to maximize the Applicant Tracking System (ATS) match score for the provided Job Description.
         
-        CRITICAL: You must return a VALID JSON object that matches this EXACT structure. Do not change the structure keys.
+        STRATEGY:
+        1. Analyze the Job Description for critical keywords (hard skills, soft skills, tools).
+        2. naturally INTEGRATE these keywords into the Summary, Skills, and Experience sections.
+        3. Maintain a professional, clean style (Indeed-style), but prioritizing KEYWORD DENSITY over extreme brevity if necessary to hit the match.
+        4. Use strong action verbs.
+
+        CRITICAL: You must return a VALID JSON object that matches this EXACT structure.
         
         {
             "personal": {
                 "fullName": "Keep original",
                 "email": "Keep original",
                 "phone": "Keep original",
-                "summary": "REWRITE THIS: A powerful, keyword-rich professional summary targeting the job."
+                "summary": "REWRITE THIS: 3-4 sentences. Must include the TOP 3-5 keywords from the JD. Focus on value proposition."
             },
+            "skills": ["Extract ALL relevant technical skills/tools from CV + JD", "Add missing JD keywords here if the candidate likely has them"],
             "experience": [
                 {
                     "id": 1,
-                    "title": "Keep original or optimize",
+                    "title": "Keep original or optimize title for JD",
                     "company": "Keep original",
                     "startDate": "Keep original",
                     "endDate": "Keep original",
-                    "description": "REWRITE THIS: Use bullet points (•). Focus on achievements and metrics relevant to the JD. Use action verbs."
+                    "description": "REWRITE THIS: Bullet points. Integrate specific keywords from the JD contextually. Focus on achievements."
                 }
                 // ... include all experiences from the input CV
             ],
@@ -204,7 +258,6 @@ app.post('/api/rewrite-cv', async (req, res) => {
         const response = await result.response;
         let text = response.text();
 
-        // Clean markdown
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
         res.json(JSON.parse(text));
@@ -215,8 +268,50 @@ app.post('/api/rewrite-cv', async (req, res) => {
     }
 });
 
-// Catch-all for SPA
-app.get('*', (req, res) => {
+app.post('/api/generate-cover-letter', async (req, res) => {
+    try {
+        const { userData, jobDescription } = req.body;
+        if (!API_KEY) throw new Error("Server missing API Key");
+
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+        const systemPrompt = `You are an expert Career Coach and Professional Resume Writer.
+        Write a compelling, professional COVER LETTER for the candidate based on their CV data and the Job Description.
+
+        GUIDELINES:
+        - Format: Standard business letter format.
+        - Tone: Professional, enthusiastic, confident, but not arrogant.
+        - Structure:
+            1. Salutation (Professional greeting).
+            2. Hook: State the role applied for and why the candidate is excited/perfect fit.
+            3. Body Paragraph 1: Connect specific skills/experience from CV to top requirements in JD.
+            4. Body Paragraph 2: Soft skills, culture fit, or unique value prop.
+            5. Conclusion: Call to action (request interview).
+            6. Sign-off.
+        - Length: 300-400 words max.
+        - Do NOT use placeholders like [Insert Name] if you have the data. Use the provided name/email/phone.
+        
+        Candidate Data:
+        ${JSON.stringify(userData)}
+
+        Job Description:
+        ${jobDescription.content || jobDescription}
+        `;
+
+        const result = await model.generateContent(systemPrompt);
+        const response = await result.response;
+        const text = response.text();
+
+        res.json({ coverLetter: text });
+
+    } catch (error) {
+        console.error("Cover Letter API Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

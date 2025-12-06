@@ -80,11 +80,32 @@ export const JobMatchPage = ({ onNavigate }) => {
             // Validate structure roughly
             if (rewrittenCV.personal && rewrittenCV.experience) {
                 setCvData(rewrittenCV);
-                alert("CV Rewritten Successfully! Redirecting to Editor...");
-                if (onNavigate) {
-                    onNavigate('builder');
-                } else {
-                    console.warn("Navigation function not provided");
+
+                // --- NEW: Generate new ATS Score ---
+                // Convert structured data back to text for analysis
+                const newCvText = `
+                    ${rewrittenCV.personal.fullName}
+                    ${rewrittenCV.personal.email} ${rewrittenCV.personal.phone}
+                    ${rewrittenCV.personal.summary}
+                    
+                    Skills: ${(rewrittenCV.skills || []).join(', ')}
+                    
+                    Experience:
+                    ${rewrittenCV.experience.map(e => `${e.title} at ${e.company}\n${e.description}`).join('\n')}
+                    
+                    Education:
+                    ${rewrittenCV.education.map(e => `${e.degree} at ${e.school}`).join('\n')}
+                `;
+
+                const newAnalysis = await analyzeCV(newCvText, jobDescription, apiKey);
+                setAiRecommendations(newAnalysis);
+
+                // Show success and redirect
+                const confirmMsg = `CV Rewritten!\n\n🚀 NEW ATS SCORE: ${newAnalysis.score}/100\n\nGo to Editor to see changes?`;
+                if (confirm(confirmMsg)) {
+                    if (onNavigate) {
+                        onNavigate('builder');
+                    }
                 }
             } else {
                 throw new Error("AI returned invalid CV structure.");
