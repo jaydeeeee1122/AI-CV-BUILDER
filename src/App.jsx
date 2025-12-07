@@ -1,20 +1,22 @@
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CVProvider, useCV } from './context/CVContext';
 import Editor from './components/Editor';
 import { Preview } from './components/Preview';
-import { LandingPage } from './components/LandingPage';
-import { Auth } from './components/Auth';
 import { JobTracker } from './components/JobTracker';
 import { JobMatchPage } from './components/JobMatchPage';
 import { CoverLetterPage } from './components/CoverLetterPage';
 import { PublicCVViewer } from './components/PublicCVViewer';
-import { Dashboard } from './components/Dashboard'; // Import Dashboard
+import { Dashboard } from './components/Dashboard';
 import { CreditDisplay } from './components/CreditDisplay';
+import { LandingPage } from './components/LandingPage';
+import { LoginPage } from './components/auth/LoginPage';
+import { SignupPage } from './components/auth/SignupPage';
 import { buyCredits } from './services/stripeService';
 import { supabase } from './lib/supabase';
-import { TemplateSelector } from './components/templates/TemplateSelector'; // Import TemplateSelector
-import './App.css';
+import { TemplateSelector } from './components/templates/TemplateSelector';
+import { SettingsPage } from './components/SettingsPage';
 
 const Layout = ({ children }) => (
   <main className="container" style={{ padding: '2rem 0', flex: 1 }}>
@@ -34,32 +36,52 @@ const MainApp = ({ user }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="min-h-screen flex flex-col bg-background font-sans">
       {/* App Navbar */}
-      <nav className="glass-panel" style={{ borderRadius: 0, borderTop: 0, borderLeft: 0, borderRight: 0, marginBottom: 0 }}>
-        <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '70px' }}>
+      <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
           <div
-            className="logo"
-            style={{ fontSize: '1.25rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            className="flex items-center gap-2 font-bold text-xl cursor-pointer"
             onClick={() => setActivePage('dashboard')}
           >
-            <span style={{ fontSize: '1.5rem' }}>📄</span> CV Builder
+            <span className="text-2xl">📄</span> CV Builder
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div className="flex items-center gap-6">
             {/* Navigation Links (Desktop) */}
-            <div className="nav-links" style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setActivePage('dashboard')} className={`btn btn-ghost ${activePage === 'dashboard' ? 'active' : ''}`}>Dashboard</button>
-              <button onClick={() => setActivePage('editor')} className={`btn btn-ghost ${activePage === 'editor' ? 'active' : ''}`}>Editor</button>
-              <button onClick={() => setActivePage('tracker')} className={`btn btn-ghost ${activePage === 'tracker' ? 'active' : ''}`}>Jobs</button>
+            <div className="hidden md:flex gap-1">
+              {['dashboard', 'editor', 'tracker', 'match', 'settings'].map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setActivePage(page)}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activePage === page
+                    ? "bg-secondary text-secondary-foreground"
+                    : "hover:bg-secondary/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  {page.charAt(0).toUpperCase() + page.slice(1).replace('match', 'Match')}
+                </button>
+              ))}
             </div>
 
-            <div style={{ width: '1px', height: '20px', background: '#ccc' }}></div>
+            <div className="h-6 w-px bg-border hidden md:block"></div>
 
             {/* User Actions */}
-            <CreditDisplay userId={user?.id} />
-            <button onClick={buyCredits} className="btn btn-sm btn-primary">Buy Credits</button>
-            <button onClick={handleLogout} className="btn btn-sm btn-ghost">Log Out</button>
+            <div className="flex items-center gap-3">
+              <CreditDisplay userId={user?.id} />
+              <button
+                onClick={buyCredits}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
+              >
+                Buy Credits
+              </button>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+              >
+                Log Out
+              </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -69,46 +91,45 @@ const MainApp = ({ user }) => {
         {activePage === 'dashboard' ? (
           <Dashboard onNavigate={setActivePage} />
         ) : activePage === 'editor' ? (
-          <div className="cv-builder-grid">
-            <div className={`editor-section ${isPreviewOpen ? 'hidden-mobile' : 'visible-mobile'}`}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-6rem)] overflow-hidden">
+            <div className={`overflow-y-auto pr-4 ${isPreviewOpen ? 'hidden lg:block' : 'block'}`}>
               <Editor />
             </div>
 
-            <div className={`preview-section ${isPreviewOpen ? 'visible-mobile' : 'hidden-mobile'}`}>
-              <div sticky="true" style={{ position: 'sticky', top: '2rem' }}>
-                <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>Live Preview</h2>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <TemplateSelector activeTemplate={activeTemplate} onSelect={setActiveTemplate} />
-                    <button className="btn btn-sm btn-outline" onClick={() => setIsPreviewOpen(false)}>
-                      Actual Size
-                    </button>
-                  </div>
+            <div className={`flex flex-col ${isPreviewOpen ? 'block' : 'hidden lg:flex'}`}>
+              <div className="sticky top-0 z-10 bg-background pb-4 border-b mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Live Preview</h2>
+                <div className="flex gap-2">
+                  <TemplateSelector activeTemplate={activeTemplate} onSelect={setActiveTemplate} />
+                  <button className="text-sm border px-3 py-1 rounded hover:bg-accent" onClick={() => setIsPreviewOpen(false)}>
+                    Actual Size
+                  </button>
                 </div>
+              </div>
 
-                <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', minHeight: '600px', display: 'flex', justifyContent: 'center', background: '#525659' }}>
-                  {/* Dark background for preview area like a PDF viewer */}
-                  <Preview />
-                </div>
+              <div className="flex-1 bg-zinc-700/50 rounded-lg p-8 overflow-hidden flex justify-center backdrop-blur-sm border border-white/10">
+                <Preview />
               </div>
             </div>
 
             {/* Mobile Toggle */}
             <button
-              className="mobile-preview-toggle"
+              className="lg:hidden fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center text-2xl"
               onClick={() => setIsPreviewOpen(!isPreviewOpen)}
             >
-              {isPreviewOpen ? '✏️ Edit' : '👁️ Preview'}
+              {isPreviewOpen ? '✏️' : '👁️'}
             </button>
           </div>
         ) : activePage === 'tracker' ? (
           <JobTracker />
         ) : activePage === 'match' ? (
-          <div className="glass-panel p-6">
+          <div className="max-w-7xl mx-auto">
             <JobMatchPage onNavigate={setActivePage} />
           </div>
         ) : activePage === 'cover-letter' ? (
           <CoverLetterPage />
+        ) : activePage === 'settings' ? (
+          <SettingsPage />
         ) : null}
       </Layout>
     </div>
@@ -116,13 +137,15 @@ const MainApp = ({ user }) => {
 };
 
 
+// ... (MainApp implementation same)
+
 // Main App Component that provides Context and handles routing
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
+    // ... (logic same)
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
       setLoading(false);
@@ -132,18 +155,19 @@ function App() {
       setUser(session?.user || null);
       setLoading(false);
     }).catch(() => {
-      console.warn("Auth session check failed (likely due to missing keys). Defaulting to guest.");
+      console.warn("Auth session check failed.");
       setLoading(false);
     });
 
     return () => {
-      authListener.subscription.unsubscribe();
+      // authListener.subscription.unsubscribe(); // Corrected in replacement content if needed but keeping logic simple first
+      if (authListener && authListener.subscription) authListener.subscription.unsubscribe();
     };
   }, []);
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'gray' }}>Loading App...</div>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
     </div>
   );
 
@@ -151,25 +175,20 @@ function App() {
     <Router>
       <CVProvider>
         <Routes>
+          <Route path="/login" element={!user ? <LoginPage onLoginSuccess={() => window.location.href = '/'} /> : <Navigate to="/" replace />} />
+          <Route path="/signup" element={!user ? <SignupPage onSignupSuccess={() => window.location.href = '/'} /> : <Navigate to="/" replace />} />
+
           <Route path="/" element={
-            user ? <MainApp user={user} /> : (
-              showAuth ? (
-                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-                  <nav style={{ padding: '1.5rem 0' }}>
-                    <div className="container">
-                      <button onClick={() => setShowAuth(false)} className="btn btn-ghost">← Back to Home</button>
-                    </div>
-                  </nav>
-                  <Auth onAuthSuccess={() => window.location.reload()} />
-                </div>
-              ) : (
-                <LandingPage
-                  onGetStarted={() => setShowAuth(true)}
-                  onLogin={() => setShowAuth(true)}
-                />
-              )
+            user ? (
+              <MainApp user={user} />
+            ) : (
+              <LandingPage
+                onLogin={() => window.location.href = '/login'}
+                onGetStarted={() => window.location.href = '/signup'}
+              />
             )
           } />
+
           <Route path="/view/:id" element={<PublicCVViewer />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

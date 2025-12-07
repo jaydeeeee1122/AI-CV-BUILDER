@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import fetch from 'node-fetch'; // Requires npm install node-fetch for Node < 18
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,15 +41,87 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'dist')));
 
-const API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-if (!API_KEY) {
+if (!GEMINI_API_KEY) {
     console.warn("WARNING: GEMINI_API_KEY is not set in .env file");
 }
 
-const findBestModel = async (apiKey) => {
-    return "gemini-2.0-flash";
-};
+// --- AI STRATEGY PATTERN ---
+
+class GeminiService {
+    constructor() {
+        this.genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+        this.model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    }
+
+    async generate(prompt) {
+        // Handle prompt array vs string
+        const result = await this.model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+    }
+}
+
+class OllamaService {
+    constructor(modelName = "llama3") {
+        this.baseUrl = "http://localhost:11434/api/generate";
+        this.modelName = modelName;
+    }
+
+    async generate(prompt) {
+        // Ollama doesn't handle complex multi-modal arrays like Gemini in the same way.
+        // We need to flatten the prompt if possible.
+        let finalPrompt = "";
+
+        if (Array.isArray(prompt)) {
+            finalPrompt = prompt.map(p => {
+                if (typeof p === 'string') return p;
+                if (p.inlineData) return `[Image Data Provided - Description: Image analysis requested]`;
+                return JSON.stringify(p);
+            }).join("\n");
+        } else {
+            finalPrompt = prompt;
+        }
+
+        const body = {
+            model: this.modelName,
+            prompt: finalPrompt,
+            stream: false
+        };
+
+        try {
+            const response = await fetch(this.baseUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Ollama Error: ${response.statusText} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            return data.response;
+        } catch (error) {
+            console.error("Ollama Service Error:", error);
+            if (error.code === 'ECONNREFUSED') {
+                throw new Error("Ollama is not running. Please run 'ollama serve' locally.");
+            }
+            throw error;
+        }
+    }
+}
+
+class AIProviderFactory {
+    static getService(provider = 'gemini', model = 'llama3') {
+        if (provider === 'ollama') {
+            return new OllamaService(model);
+        }
+        return new GeminiService();
+    }
+}
 
 // --- STRIPE ROUTES ---
 
@@ -96,19 +169,49 @@ app.post('/api/mock-payment-success', async (req, res) => {
     }
 });
 
-// --- AI ROUTES (Using gemini-2.0-flash) ---
+// --- AI ROUTES (Standardized) ---
 
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
 });
 
-app.post('/api/enhance', async (req, res) => {
-    try {
-        const { text, instructions } = req.body;
-        if (!API_KEY) throw new Error("Server missing API Key");
+// Middleware to check and deduct credits
+const checkCredits = async (req, res, next) => {
+    const { userId } = req.body; // Ensure frontend sends userId
 
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    if (!userId) {
+        return res.status(401).json({ error: "User ID required for AI features" });
+    }
+
+    try {
+        // Call the RPC function we created in Supabase
+        // This checks balance AND deducts in one atomic transaction
+        const { data: newBalance, error } = await supabase.rpc('deduct_credits', {
+            uid: userId,
+            amount: 10
+        });
+
+        if (error) {
+            console.error("Credit deduction error:", error);
+            if (error.message.includes('Insufficient credits')) {
+                return res.status(402).json({ error: "Insufficient credits. Please add more." });
+            }
+            return res.status(500).json({ error: "Transaction failed" });
+        }
+
+        console.log(`Credits deducted. New balance for ${userId}: ${newBalance}`);
+        req.newBalance = newBalance; // Pass to next handler if needed
+        next();
+    } catch (err) {
+        console.error("Middleware Error:", err);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+app.post('/api/enhance', checkCredits, async (req, res) => {
+    try {
+        const { text, instructions, provider, model } = req.body;
+        // ... rest of the route remains same ...
 
         let prompt = "";
         if (instructions && instructions.trim() !== "") {
@@ -122,9 +225,8 @@ app.post('/api/enhance', async (req, res) => {
             Text to rewrite: "${text}"`;
         }
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const enhancedText = response.text();
+        const service = AIProviderFactory.getService(provider, model);
+        const enhancedText = await service.generate(prompt);
 
         res.json({ text: enhancedText.trim() });
     } catch (error) {
@@ -133,50 +235,10 @@ app.post('/api/enhance', async (req, res) => {
     }
 });
 
-app.post('/api/analyze-cv', async (req, res) => {
+app.post('/api/analyze-cv', checkCredits, async (req, res) => {
     try {
-        console.log("Analyze-CV Request for Model: gemini-2.0-flash");
-        const { cvText, jobDescription } = req.body;
-        if (!API_KEY) throw new Error("Server missing API Key");
-
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-        let promptParts = [];
-        const systemPrompt = `You are an expert ATS (Applicant Tracking System) and Technical Recruiter. 
-        Compare the provided CV content against the Job Description.
-        
-        Output a JSON object with the following structure (do NOT use markdown code blocks, just raw JSON):
-        {
-            "score": number (0-100),
-            "missingKeywords": ["keyword1", "keyword2"],
-            "recommendations": ["rec1", "rec2"],
-            "tailoredSummary": "A rewritten professional summary for the CV that targets this specific job."
-        }
-        
-        CV Content:
-        "${cvText}"
-        `;
-        promptParts.push(systemPrompt);
-
-        if (jobDescription.type === 'image') {
-            const base64Data = jobDescription.content.split(',')[1];
-            promptParts.push({
-                inlineData: {
-                    data: base64Data,
-                    mimeType: "image/jpeg"
-                }
-            });
-            promptParts.push("\nJob Description is provided in the image above.");
-        } else {
-            promptParts.push(`\nJob Description:\n"${jobDescription.content}"`);
-        }
-
-        const result = await model.generateContent(promptParts);
-        const response = await result.response;
-        let text = response.text();
-
-        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const { cvText, jobDescription, provider, model } = req.body;
+        console.log(`Analyze-CV Request. Provider: ${provider || 'gemini'}`);
 
         res.json(JSON.parse(text));
 
@@ -186,13 +248,9 @@ app.post('/api/analyze-cv', async (req, res) => {
     }
 });
 
-app.post('/api/rewrite-cv', async (req, res) => {
+app.post('/api/rewrite-cv', checkCredits, async (req, res) => {
     try {
-        const { cvText, jobDescription } = req.body;
-        if (!API_KEY) throw new Error("Server missing API Key");
-
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const { cvText, jobDescription, provider, model } = req.body;
 
         let promptParts = [];
         const systemPrompt = `You are an expert Professional CV Writer & ATS Optimizer. 
@@ -203,6 +261,7 @@ app.post('/api/rewrite-cv', async (req, res) => {
         2. naturally INTEGRATE these keywords into the Summary, Skills, and Experience sections.
         3. Maintain a professional, clean style (Indeed-style), but prioritizing KEYWORD DENSITY over extreme brevity if necessary to hit the match.
         4. Use strong action verbs.
+        5. DO NOT hallucinate work experience, only enhance existing content.
 
         CRITICAL: You must return a VALID JSON object that matches this EXACT structure.
         
@@ -254,11 +313,15 @@ app.post('/api/rewrite-cv', async (req, res) => {
             promptParts.push(`\nTarget Job Description:\n"${jobDescription.content}"`);
         }
 
-        const result = await model.generateContent(promptParts);
-        const response = await result.response;
-        let text = response.text();
+        const service = AIProviderFactory.getService(provider, model);
+        let text = await service.generate(promptParts);
 
         text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            text = text.substring(jsonStart, jsonEnd + 1);
+        }
 
         res.json(JSON.parse(text));
 
@@ -268,13 +331,9 @@ app.post('/api/rewrite-cv', async (req, res) => {
     }
 });
 
-app.post('/api/generate-cover-letter', async (req, res) => {
+app.post('/api/generate-cover-letter', checkCredits, async (req, res) => {
     try {
-        const { userData, jobDescription } = req.body;
-        if (!API_KEY) throw new Error("Server missing API Key");
-
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const { userData, jobDescription, provider, model } = req.body;
 
         const systemPrompt = `You are an expert Career Coach and Professional Resume Writer.
         Write a compelling, professional COVER LETTER for the candidate based on their CV data and the Job Description.
@@ -299,9 +358,8 @@ app.post('/api/generate-cover-letter', async (req, res) => {
         ${jobDescription.content || jobDescription}
         `;
 
-        const result = await model.generateContent(systemPrompt);
-        const response = await result.response;
-        const text = response.text();
+        const service = AIProviderFactory.getService(provider, model);
+        const text = await service.generate(systemPrompt);
 
         res.json({ coverLetter: text });
 

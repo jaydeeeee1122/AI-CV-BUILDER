@@ -3,7 +3,8 @@ import React from 'react';
 export const TemplateSelector = ({ activeTemplate, onSelect }) => {
     const templates = [
         { id: 'modern', name: 'Modern (Glass)', color: 'var(--primary)' },
-        { id: 'minimalist', name: 'ATS Minimalist', color: '#333' }
+        { id: 'minimalist', name: 'ATS Minimalist', color: '#333' },
+        { id: 'creative', name: 'Creative (Sidebar)', color: '#7c3aed' }
     ];
 
     return (

@@ -23,10 +23,10 @@ const callApi = async (endpoint, body) => {
     }
 };
 
-export const enhanceText = async (text, apiKey, instructions = "") => {
-    // Note: apiKey param is kept for compatibility but ignored
+export const enhanceText = async (text, instructions = "", options = {}) => {
     try {
-        const data = await callApi('/api/enhance', { text, instructions });
+        const { provider, model, userId } = options;
+        const data = await callApi('/api/enhance', { text, instructions, provider, model, userId });
         return data.text;
     } catch (error) {
         console.error("Enhance failed", error);
@@ -34,8 +34,7 @@ export const enhanceText = async (text, apiKey, instructions = "") => {
     }
 };
 
-export const testApiKey = async (apiKey) => {
-    // Note: apiKey param is kept for compatibility
+export const testApiKey = async () => {
     try {
         const response = await fetch('/api/health');
         if (response.ok) return "Backend connected";
@@ -45,15 +44,17 @@ export const testApiKey = async (apiKey) => {
     }
 };
 
-export const analyzeCV = async (cvText, jobDescription, apiKey) => {
-    return callApi('/api/analyze-cv', { cvText, jobDescription });
+export const analyzeCV = async (cvText, jobDescription, options = {}) => {
+    const { provider, model, userId } = options;
+    return callApi('/api/analyze-cv', { cvText, jobDescription, provider, model, userId });
 };
 
-export const rewriteCV = async (cvText, jobDescription, apiKey) => {
-    return callApi('/api/rewrite-cv', { cvText, jobDescription });
+export const rewriteCV = async (cvText, jobDescription, options = {}) => {
+    const { provider, model, userId } = options;
+    return callApi('/api/rewrite-cv', { cvText, jobDescription, provider, model, userId });
 };
 
-export const generateCoverLetter = async (userData, jobDescription) => {
-    // userData should be the cvData object from context
-    return callApi('/api/generate-cover-letter', { userData, jobDescription });
+export const generateCoverLetter = async (userData, jobDescription, options = {}) => {
+    const { provider, model, userId } = options;
+    return callApi('/api/generate-cover-letter', { userData, jobDescription, provider, model, userId });
 };

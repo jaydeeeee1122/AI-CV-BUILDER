@@ -1,10 +1,13 @@
+
 import React, { useEffect, useState } from 'react';
 import { useCV } from '../context/CVContext';
 import { supabase } from '../lib/supabase';
-import { CreditDisplay } from './CreditDisplay';
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "./ui/card";
+import { Plus, Target, FileText, ClipboardList, Trash2, Eye, Edit2, Settings } from "lucide-react";
 
 export const Dashboard = ({ onNavigate }) => {
-    const { fetchUserCVs, loadCV, createNewCV, deleteCV, cvData } = useCV();
+    const { fetchUserCVs, loadCV, createNewCV, deleteCV } = useCV();
     const [cvs, setCvs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
@@ -43,87 +46,105 @@ export const Dashboard = ({ onNavigate }) => {
         }
     };
 
-    if (loading) return <div className="p-8 text-white">Loading Dashboard...</div>;
+    if (loading) return (
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+            Loading Dashboard...
+        </div>
+    );
 
     return (
-        <div className="dashboard-container container fade-in" style={{ padding: '2rem 0' }}>
-            <h1 className="mb-8">Welcome Back</h1>
+        <div className="container py-8 space-y-8 animate-in fade-in duration-500">
+            <h1 className="text-3xl font-bold tracking-tight">Welcome Back</h1>
 
-            <div className="cv-builder-grid">
-                {/* Section 1: Quick Actions */}
-                <div className="glass-panel p-6">
-                    <h2 className="mb-4">Quick Actions</h2>
-                    <div className="flex gap-4 flex-wrap" style={{ display: 'flex', gap: '1rem' }}>
-                        <button onClick={handleCreateNew} className="btn btn-primary">
-                            + New Resume
-                        </button>
-                        <button onClick={() => onNavigate('match')} className="btn btn-outline">
-                            🎯 Job Match
-                        </button>
-                        <button onClick={() => onNavigate('cover-letter')} className="btn btn-outline">
-                            ✉️ Cover Letter
-                        </button>
-                        <button onClick={() => onNavigate('tracker')} className="btn btn-outline">
-                            📋 Job Tracker
-                        </button>
-                    </div>
+            {/* Section 1: Quick Actions */}
+            <Card className="bg-muted/40 border-dashed">
+                <CardHeader>
+                    <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <Button onClick={handleCreateNew} className="gap-2 h-auto py-4 flex flex-col items-center justify-center text-center">
+                        <Plus size={24} className="mb-1" /> New Resume
+                    </Button>
+                    <Button variant="outline" onClick={() => onNavigate('match')} className="gap-2 h-auto py-4 flex flex-col items-center justify-center text-center">
+                        <Target size={24} className="mb-1" /> Job Match
+                    </Button>
+                    <Button variant="outline" onClick={() => onNavigate('cover-letter')} className="gap-2 h-auto py-4 flex flex-col items-center justify-center text-center">
+                        <FileText size={24} className="mb-1" /> Cover Letter
+                    </Button>
+                    <Button variant="outline" onClick={() => onNavigate('tracker')} className="gap-2 h-auto py-4 flex flex-col items-center justify-center text-center">
+                        <ClipboardList size={24} className="mb-1" /> Job Tracker
+                    </Button>
+                    <Button variant="outline" onClick={() => onNavigate('settings')} className="gap-2 h-auto py-4 flex flex-col items-center justify-center text-center" title="Configure AI Provider">
+                        <Settings size={24} className="mb-1" /> Settings
+                    </Button>
+                </CardContent>
+            </Card>
+
+            {/* Section 2: My CVs */}
+            <div>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold tracking-tight">My Resumes</h2>
+                    <span className="text-muted-foreground text-sm font-medium">{cvs.length} Documents</span>
                 </div>
 
-                {/* Section 2: My CVs */}
-                <div className="glass-panel p-6" style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h2>My Resumes</h2>
-                        <span className="text-muted">{cvs.length} Documents</span>
+                {cvs.length === 0 ? (
+                    <Card className="border-dashed flex flex-col items-center justify-center p-12 text-center h-64">
+                        <div className="rounded-full bg-muted p-4 mb-4">
+                            <FileText className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="font-semibold text-lg mb-2">No resumes yet</h3>
+                        <p className="text-muted-foreground mb-6 max-w-sm">
+                            Create your first professional resume today with our AI-powered builder.
+                        </p>
+                        <Button onClick={handleCreateNew}>Create Your First CV</Button>
+                    </Card>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {cvs.map((cv) => (
+                            <Card key={cv.id} className="flex flex-col hover:shadow-md transition-shadow">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-lg leading-tight truncate">
+                                        {cv.content.personal?.fullName || 'Untitled User'}
+                                    </CardTitle>
+                                    <CardDescription className="line-clamp-2 h-10">
+                                        {cv.content.personal?.summary || 'No summary provided...'}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    <div className="text-xs text-muted-foreground">
+                                        Last Updated: {new Date(cv.updated_at).toLocaleDateString()}
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="grid grid-cols-3 gap-2 border-t pt-4 bg-muted/20">
+                                    <Button size="sm" onClick={() => handleEdit(cv.id)} className="w-full gap-2">
+                                        <Edit2 size={14} /> Edit
+                                    </Button>
+
+                                    {cv.is_public ? (
+                                        <a
+                                            href={`/view/${cv.id}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="w-full"
+                                        >
+                                            <Button size="sm" variant="outline" className="w-full gap-2">
+                                                <Eye size={14} /> View
+                                            </Button>
+                                        </a>
+                                    ) : (
+                                        <Button size="sm" variant="outline" disabled className="w-full opacity-50 cursor-not-allowed">
+                                            <Eye size={14} /> Private
+                                        </Button>
+                                    )}
+
+                                    <Button size="sm" variant="ghost" onClick={() => handleDelete(cv.id)} className="w-full text-destructive hover:text-destructive hover:bg-destructive/10">
+                                        <Trash2 size={14} />
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
-
-                    {cvs.length === 0 ? (
-                        <div className="text-center p-8 border border-dashed border-slate-300 rounded-lg">
-                            <p>You haven't saved any resumes yet.</p>
-                            <button onClick={handleCreateNew} className="btn btn-primary mt-4">Create Your First CV</button>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
-                            {cvs.map((cv) => (
-                                <div key={cv.id} style={{
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: '0.75rem',
-                                    padding: '1.5rem',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    minHeight: '200px'
-                                }}>
-                                    <div>
-                                        <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>
-                                            {cv.content.personal?.fullName || 'Untitled User'}
-                                        </h3>
-                                        <p style={{ fontSize: '0.85rem', opacity: 0.7 }}>
-                                            {cv.content.personal?.summary?.substring(0, 60)}...
-                                        </p>
-                                        <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', opacity: 0.5 }}>
-                                            Last Updated: {new Date(cv.updated_at).toLocaleDateString()}
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                                        <button onClick={() => handleEdit(cv.id)} className="btn btn-sm btn-primary" style={{ flex: 1 }}>
-                                            Edit
-                                        </button>
-                                        {cv.is_public && (
-                                            <a href={`/view/${cv.id}`} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                👁️
-                                            </a>
-                                        )}
-                                        <button onClick={() => handleDelete(cv.id)} className="btn btn-sm btn-ghost" style={{ color: '#ef4444' }}>
-                                            🗑️
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
         </div>
     );

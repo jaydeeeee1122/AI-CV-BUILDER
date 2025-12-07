@@ -17,6 +17,25 @@ export const CVProvider = ({ children }) => {
     const [aiRecommendations, setAiRecommendations] = useState(null);
     const [activeTemplate, setActiveTemplate] = useState('modern');
 
+    // AI Settings
+    const [aiProvider, setAiProvider] = useState('gemini'); // 'gemini' | 'ollama'
+    const [aiModel, setAiModel] = useState('llama3'); // Default local model
+
+    // Auth State
+    const [userId, setUserId] = useState(null);
+
+    React.useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) setUserId(user.id);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUserId(session?.user?.id || null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
     const [cvData, setCvData] = useState({
         personal: {
             fullName: 'John Doe',
@@ -298,6 +317,11 @@ export const CVProvider = ({ children }) => {
                 setAiRecommendations,
                 activeTemplate,
                 setActiveTemplate,
+                aiProvider,
+                setAiProvider,
+                aiModel,
+                setAiModel,
+                userId, // Expose user ID
                 updatePersonal,
                 addExperience,
                 updateExperience,

@@ -4,7 +4,7 @@ import { generateCoverLetter } from '../services/aiService';
 import { JobDescriptionUpload } from './JobDescriptionUpload';
 
 export const CoverLetterPage = () => {
-    const { cvData, jobDescription, setJobDescription } = useCV();
+    const { cvData, jobDescription, setJobDescription, userId, aiProvider, aiModel } = useCV();
     const [letter, setLetter] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -15,11 +15,19 @@ export const CoverLetterPage = () => {
         }
         setIsGenerating(true);
         try {
-            const response = await generateCoverLetter(cvData, jobDescription);
+            const response = await generateCoverLetter(cvData, jobDescription, {
+                userId,
+                provider: aiProvider,
+                model: aiModel
+            });
             setLetter(response.coverLetter);
         } catch (error) {
             console.error(error);
-            alert("Failed to generate cover letter: " + error.message);
+            if (error.message.includes("402") || error.message.includes("credits")) {
+                alert("Insufficient Credits. Please purchase more.");
+            } else {
+                alert("Failed to generate cover letter: " + error.message);
+            }
         } finally {
             setIsGenerating(false);
         }
@@ -53,9 +61,14 @@ export const CoverLetterPage = () => {
                     className="btn btn-primary"
                     onClick={handleGenerate}
                     disabled={isGenerating || !jobDescription}
-                    style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', marginBottom: '1rem' }}
+                    style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}
                 >
-                    {isGenerating ? '✍️ Writing...' : '✨ Write Cover Letter'}
+                    {isGenerating ? '✍️ Writing...' : (
+                        <>
+                            <span>✨ Write Cover Letter</span>
+                            <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>(Cost: 10 Credits)</span>
+                        </>
+                    )}
                 </button>
 
                 {letter && (
