@@ -24,9 +24,26 @@ export const CVProvider = ({ children }) => {
     // Auth State
     const [userId, setUserId] = useState(null);
 
+    // Subscription & Usage State
+    const [subscription, setSubscription] = useState({
+        plan: 'free', // 'free' | 'one_off' | 'weekly' | 'monthly'
+        status: 'active',
+        credits: 1, // Default 1 CV for free
+        expiryDate: null
+    });
+
+    const [aiUsage, setAiUsage] = useState({
+        iterations: 0, // Track total AI calls for current CV
+        maxIterations: 4 // Hard limit for everyone
+    });
+
     React.useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) setUserId(user.id);
+            if (user) {
+                setUserId(user.id);
+                // In a real app, we would fetch subscription from DB here
+                // For now, default to free
+            }
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -42,16 +59,16 @@ export const CVProvider = ({ children }) => {
             email: 'john@example.com',
             phone: '+1 234 567 890',
             summary: 'Experienced professional with a passion for technology.',
-            photoUrl: '', // New field
-            themeColor: '#2563eb', // Default Blue
-            themeFont: 'Inter, sans-serif', // Default Font
+            photoUrl: '',
+            themeColor: '#2563eb',
+            themeFont: 'Inter, sans-serif',
         },
         experience: [
             {
                 id: 1,
                 title: 'Software Engineer',
                 company: 'Tech Corp',
-                startDate: '01-01-2020',
+                startDate: '2020-01',
                 endDate: 'Present',
                 description: 'Developed scalable web applications using React and Node.js.',
             },
@@ -66,6 +83,18 @@ export const CVProvider = ({ children }) => {
             },
         ],
     });
+
+    // Helper: Check if User can use Gemini
+    // Rule: Gemini is ONLY for Paid users, and ONLY on 3rd/4th iterations.
+    const canUseGemini = () => {
+        const isPaid = subscription.plan !== 'free';
+        const isLateStage = aiUsage.iterations >= 2; // 0, 1 are early. 2, 3 are late.
+        return isPaid && isLateStage;
+    };
+
+    const incrementAiUsage = () => {
+        setAiUsage(prev => ({ ...prev, iterations: prev.iterations + 1 }));
+    };
 
     const updatePersonal = (field, value) => {
         setCvData((prev) => ({
@@ -315,24 +344,51 @@ export const CVProvider = ({ children }) => {
         }
     };
 
+    const [activeSection, setActiveSection] = useState('personal');
+    const [activeIndustry, setActiveIndustry] = useState(null);
+    const [activeTemplateObject, setActiveTemplateObject] = useState({
+        id: 'default',
+        name: 'Modern Clean',
+        slug: 'default-modern',
+        component_map_id: 'classic',
+        default_config: { primaryColor: '#2563eb', font: 'Inter' }
+    });
+
+    // Load default template on mount or if none selected? 
+    // For now we start empty or default to Tech/Minimal.
+
     return (
         <CVContext.Provider
             value={{
                 cvData,
-                setCvData, // Expose this to allow full overwrite
+                setCvData,
                 apiKey,
                 setApiKey,
                 jobDescription,
                 setJobDescription,
                 aiRecommendations,
                 setAiRecommendations,
-                activeTemplate,
+                activeTemplate, // Legacy ID, maybe keep for fallback
                 setActiveTemplate,
+                activeTemplateObject, // New DB Object
+                setActiveTemplateObject,
+                activeIndustry,
+                setActiveIndustry,
                 aiProvider,
                 setAiProvider,
                 aiModel,
                 setAiModel,
-                userId, // Expose user ID
+                userId,
+                // Subscription & AI State
+                subscription,
+                setSubscription,
+                aiUsage,
+                incrementAiUsage,
+                canUseGemini,
+                // UI State
+                activeSection,
+                setActiveSection,
+                // Actions
                 updatePersonal,
                 addExperience,
                 updateExperience,

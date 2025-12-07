@@ -67,7 +67,7 @@ export const MinimalistTemplate = ({ data }) => {
 
     return (
         <div style={styles.container} className="ats-template">
-            <header style={styles.header}>
+            <header style={styles.header} id="section-personal">
                 <h1 style={styles.name}>{personal.fullName}</h1>
                 <div style={styles.contact}>
                     <span>{personal.email}</span>
@@ -81,7 +81,7 @@ export const MinimalistTemplate = ({ data }) => {
             </section>
 
             {skills && skills.length > 0 && (
-                <section style={styles.section}>
+                <section style={styles.section} id="section-skills">
                     <h3 style={styles.sectionTitle}>Core Competencies</h3>
                     <div style={styles.skillsGrid}>
                         {skills.map((skill, index) => (
@@ -91,7 +91,7 @@ export const MinimalistTemplate = ({ data }) => {
                 </section>
             )}
 
-            <section style={styles.section}>
+            <section style={styles.section} id="section-experience">
                 <h3 style={styles.sectionTitle}>Professional Experience</h3>
                 {experience.map((exp) => (
                     <div key={exp.id} style={styles.jobBlock}>
@@ -105,7 +105,7 @@ export const MinimalistTemplate = ({ data }) => {
                 ))}
             </section>
 
-            <section style={styles.section}>
+            <section style={styles.section} id="section-education">
                 <h3 style={styles.sectionTitle}>Education</h3>
                 {education.map((edu) => (
                     <div key={edu.id} style={styles.jobBlock}>

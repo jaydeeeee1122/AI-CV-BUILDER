@@ -11,6 +11,7 @@ import { PhotoUpload } from './PhotoUpload';
 import { RichTextEditor } from './RichTextEditor';
 import { ThemeSelector } from './ThemeSelector';
 import { FontSelector } from './FontSelector';
+import { FontSizeSelector } from './FontSizeSelector';
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { GripVertical, Sparkles, Plus, Trash2, Printer, Save, Share2 } from "lucide-react";
@@ -51,7 +52,8 @@ const Editor = ({ previewRef }) => {
         cvData, updatePersonal, addExperience, updateExperience, removeExperience,
         addEducation, updateEducation, removeEducation, updateSkills, apiKey, setApiKey, reorderSection,
         saveCV, togglePublish, isSaving, publicUrl, savedId,
-        userId, aiProvider, aiModel
+        userId, aiProvider, aiModel, setActiveSection,
+        activeIndustry, setActiveIndustry, setActiveTemplateObject
     } = useCV();
 
     const { personal, experience, education, skills } = cvData;
@@ -116,174 +118,193 @@ const Editor = ({ previewRef }) => {
     };
 
     return (
-        <div className="pb-20 space-y-4">
-            {/* Header / Actions */}
-            <div className="flex justify-between items-center sticky top-0 md:top-[-1rem] z-10 bg-background/95 backdrop-blur py-4 border-b mb-4">
-                <h2 className="text-2xl font-bold tracking-tight font-heading">Editor</h2>
+        <div className="pb-20 flex flex-col min-h-full">
+            {/* Toolbar Header - Matched to App.jsx Preview Header */}
+            <div className="flex justify-between items-center sticky top-0 z-20 bg-background/95 backdrop-blur px-4 py-3 border-b">
+                <h2 className="text-sm font-heading font-bold flex items-center gap-2 text-foreground/80">
+                    <span className="text-lg">📝</span> Editor
+                </h2>
                 <div className="flex gap-2">
-                    <Button variant="default" size="sm" onClick={handlePrint} title="Export as PDF" className="bg-primary hover:bg-primary/90">
-                        <Printer size={16} className="mr-2" /> PDF
+                    <Button variant="ghost" size="sm" onClick={handlePrint} title="Export as PDF" className="h-8 px-2 text-xs">
+                        <Printer size={14} className="mr-2" /> PDF
                     </Button>
-                    <Button variant="outline" size="sm" onClick={saveCV} disabled={isSaving}>
-                        <Save size={16} className="mr-2" /> {isSaving ? 'Saving...' : 'Save'}
+                    <Button variant="ghost" size="sm" onClick={saveCV} disabled={isSaving} className="h-8 px-2 text-xs">
+                        <Save size={14} className="mr-2" /> {isSaving ? '...' : 'Save'}
                     </Button>
-                    <Button size="sm" onClick={() => setIsShareModalOpen(true)}>
-                        <Share2 size={16} className="mr-2" /> Share
+                    <Button size="sm" onClick={() => setIsShareModalOpen(true)} className="h-8 px-3 text-xs">
+                        <Share2 size={14} className="mr-2" /> Share
                     </Button>
                 </div>
             </div>
 
-            <ResumeStrength />
+            {/* Scrollable Content Area */}
+            <div className="p-6 space-y-6">
+                <ResumeStrength />
 
-            {/* Main Tabs Interface */}
-            <Tabs defaultValue="personal" className="w-full">
-                <TabsList className="grid w-full grid-cols-5 mb-4">
-                    <TabsTrigger value="personal">Profile</TabsTrigger>
-                    <TabsTrigger value="media">Media</TabsTrigger>
-                    <TabsTrigger value="experience">Experience</TabsTrigger>
-                    <TabsTrigger value="education">Education</TabsTrigger>
-                    <TabsTrigger value="skills">Skills</TabsTrigger>
-                </TabsList>
+                {/* Main Tabs Interface */}
+                <Tabs defaultValue="personal" className="w-full" onValueChange={(val) => {
+                    const sectionMap = {
+                        'personal': 'section-personal',
+                        'media': 'section-personal',
+                        'experience': 'section-experience',
+                        'education': 'section-education',
+                        'skills': 'section-skills'
+                    };
+                    if (setActiveSection && sectionMap[val]) {
+                        setActiveSection(sectionMap[val]);
+                    }
+                }}>
+                    <TabsList className="grid w-full grid-cols-5 mb-4">
+                        <TabsTrigger value="personal">Profile</TabsTrigger>
+                        <TabsTrigger value="media">Media</TabsTrigger>
+                        <TabsTrigger value="experience">Experience</TabsTrigger>
+                        <TabsTrigger value="education">Education</TabsTrigger>
+                        <TabsTrigger value="skills">Skills</TabsTrigger>
+                    </TabsList>
 
-                {/* Personal & Design Content */}
-                <TabsContent value="personal">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Personal Details</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <ThemeSelector />
-                                <FontSelector />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Full Name</Label>
-                                <Input
-                                    value={personal.fullName}
-                                    onChange={(e) => updatePersonal('fullName', e.target.value)}
-                                    placeholder="John Doe"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Email</Label>
-                                <Input
-                                    value={personal.email}
-                                    onChange={(e) => updatePersonal('email', e.target.value)}
-                                    placeholder="john@example.com"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Summary</Label>
-                                <textarea
-                                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    value={personal.summary}
-                                    onChange={(e) => updatePersonal('summary', e.target.value)}
-                                    placeholder="Experienced professional with a track record of..."
-                                    rows={4}
-                                />
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => handleAIEnhance('summary', personal.summary, 'summary')}
-                                    disabled={enhancingId === 'summary'}
-                                    className="w-full"
-                                >
-                                    <Sparkles size={14} className="mr-2" />
-                                    {enhancingId === 'summary' ? 'Enhancing...' : 'Enhance with AI'}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* Media Content */}
-                <TabsContent value="media">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Photo & Media</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">Upload a professional photo for your CV.</p>
-                            <PhotoUpload />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                {/* Experience Content */}
-                {/* Experience Content */}
-                <TabsContent value="experience">
-                    <ExperienceSection />
-                </TabsContent>
-
-                {/* Education Content */}
-                <TabsContent value="education">
-                    <EducationSection />
-                </TabsContent>
-
-                {/* Skills Content */}
-                <TabsContent value="skills">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Skills</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="flex gap-2">
-                                <Input
-                                    value={newSkill}
-                                    onChange={(e) => setNewSkill(e.target.value)}
-                                    placeholder="Add a skill (e.g. React, Project Management)"
-                                    onKeyDown={(e) => e.key === 'Enter' && handleAddSkill()}
-                                />
-                                <Button onClick={handleAddSkill}>Add</Button>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                                {Array.isArray(skills) && skills.map((skill, index) => (
-                                    <div key={index} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm group animate-in fade-in zoom-in-95">
-                                        <span>{skill}</span>
-                                        <button
-                                            onClick={() => handleRemoveSkill(index)}
-                                            className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
-                                    </div>
-                                ))}
-                                {(!skills || skills.length === 0) && (
-                                    <p className="text-muted-foreground text-sm italic">No skills added yet.</p>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-
-            {/* Share Modal */}
-            {
-                isShareModalOpen && (
-                    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsShareModalOpen(false)}>
-                        <Card className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+                    {/* Personal & Design Content */}
+                    <TabsContent value="personal">
+                        <Card>
                             <CardHeader>
-                                <CardTitle>Share Your CV</CardTitle>
+                                <CardTitle>Personal Details</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <p className="text-sm text-muted-foreground">Publish your CV to get a shareable link.</p>
-                                <div className="flex gap-2">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <ThemeSelector />
+                                    <div className="space-y-4">
+                                        <FontSelector />
+                                        <FontSizeSelector />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Full Name</Label>
                                     <Input
-                                        readOnly
-                                        value={publicUrl ? `${window.location.origin}/view/${savedId}` : 'Not published yet'}
+                                        value={personal.fullName}
+                                        onChange={(e) => updatePersonal('fullName', e.target.value)}
+                                        placeholder="John Doe"
                                     />
-                                    <Button onClick={togglePublish}>
-                                        {publicUrl ? 'Unpublish' : 'Publish'}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Email</Label>
+                                    <Input
+                                        value={personal.email}
+                                        onChange={(e) => updatePersonal('email', e.target.value)}
+                                        placeholder="john@example.com"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Summary</Label>
+                                    <textarea
+                                        className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={personal.summary}
+                                        onChange={(e) => updatePersonal('summary', e.target.value)}
+                                        placeholder="Experienced professional with a track record of..."
+                                        rows={4}
+                                    />
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => handleAIEnhance('summary', personal.summary, 'summary')}
+                                        disabled={enhancingId === 'summary'}
+                                        className="w-full"
+                                    >
+                                        <Sparkles size={14} className="mr-2" />
+                                        {enhancingId === 'summary' ? 'Enhancing...' : 'Enhance with AI'}
                                     </Button>
                                 </div>
-                                <Button variant="ghost" className="w-full" onClick={() => setIsShareModalOpen(false)}>Close</Button>
                             </CardContent>
                         </Card>
-                    </div>
-                )
-            }
-        </div >
+                    </TabsContent>
+
+                    {/* Media Content */}
+                    <TabsContent value="media">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Photo & Media</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-sm text-muted-foreground mb-4">Upload a professional photo for your CV.</p>
+                                <PhotoUpload />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Experience Content */}
+                    {/* Experience Content */}
+                    <TabsContent value="experience">
+                        <ExperienceSection />
+                    </TabsContent>
+
+                    {/* Education Content */}
+                    <TabsContent value="education">
+                        <EducationSection />
+                    </TabsContent>
+
+                    {/* Skills Content */}
+                    <TabsContent value="skills">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Skills</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={newSkill}
+                                        onChange={(e) => setNewSkill(e.target.value)}
+                                        placeholder="Add a skill (e.g. React, Project Management)"
+                                        onKeyDown={(e) => e.key === 'Enter' && handleAddSkill()}
+                                    />
+                                    <Button onClick={handleAddSkill}>Add</Button>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    {Array.isArray(skills) && skills.map((skill, index) => (
+                                        <div key={index} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm group animate-in fade-in zoom-in-95">
+                                            <span>{skill}</span>
+                                            <button
+                                                onClick={() => handleRemoveSkill(index)}
+                                                className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(!skills || skills.length === 0) && (
+                                        <p className="text-muted-foreground text-sm italic">No skills added yet.</p>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+
+                {/* Share Modal */}
+                {
+                    isShareModalOpen && (
+                        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsShareModalOpen(false)}>
+                            <Card className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+                                <CardHeader>
+                                    <CardTitle>Share Your CV</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <p className="text-sm text-muted-foreground">Publish your CV to get a shareable link.</p>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            readOnly
+                                            value={publicUrl ? `${window.location.origin}/view/${savedId}` : 'Not published yet'}
+                                        />
+                                        <Button onClick={togglePublish}>
+                                            {publicUrl ? 'Unpublish' : 'Publish'}
+                                        </Button>
+                                    </div>
+                                    <Button variant="ghost" className="w-full" onClick={() => setIsShareModalOpen(false)}>Close</Button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )
+                }
+            </div>
+        </div>
     );
 };
 

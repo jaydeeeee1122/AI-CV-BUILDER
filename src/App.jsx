@@ -89,72 +89,80 @@ const MainApp = ({ user }) => {
 
       {/* Main Content Area */}
       {/* We use flex-1 min-h-0 to ensure children can scroll internally */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden pt-6">
+      {/* Main Content Area - Full width for editor, container for others */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {activePage === 'dashboard' ? (
-          <div className="flex-1 overflow-y-auto min-h-0 container">
+          <div className="flex-1 overflow-y-auto min-h-0 container pt-6">
             <Dashboard onNavigate={setActivePage} />
           </div>
         ) : activePage === 'editor' ? (
-          <Layout className="h-full">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full min-h-0">
-              {/* Editor Pane - Scrollable */}
-              <div className="order-2 lg:order-1 h-full flex flex-col min-h-0 bg-background/50 rounded-xl border border-border/50 shadow-sm overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-32">
+          <div className="h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 h-full min-h-0 bg-background">
+              {/* Editor Pane - Scrollable LEFT */}
+              <div className="order-2 lg:order-1 h-full flex flex-col min-h-0 bg-background border-r border-border shadow-sm z-10">
+                <div className="flex-1 overflow-y-auto p-0 custom-scrollbar pb-32">
                   <Editor previewRef={previewRef} />
                 </div>
               </div>
 
-              {/* Preview Pane - Sticky/Fixed */}
-              <div className={`order-1 lg:order-2 flex flex-col h-full min-h-0 ${isPreviewOpen ? 'fixed inset-0 z-50 bg-background p-4' : 'hidden lg:flex'}`} id="preview-section">
-                <div className="flex-none bg-background/95 backdrop-blur z-10 pb-4 border-b mb-4 flex justify-between items-center" id="preview-header">
-                  <h2 className="text-lg font-heading font-semibold flex items-center gap-2">
-                    <span className="text-primary">👁️</span> Live Preview
-                  </h2>
-                  <div className="flex gap-2">
+              {/* Preview Pane - Sticky/Fixed RIGHT */}
+              <div className={`order-1 lg:order-2 flex flex-col h-full min-h-0 bg-slate-100/50 dark:bg-slate-900/50 ${isPreviewOpen ? 'fixed inset-0 z-50 bg-background p-0' : 'hidden lg:flex'}`} id="preview-section">
+
+                {/* Fixed Header with Vertical Layout */}
+                <div className="flex-none bg-background/80 backdrop-blur z-10 border-b mb-0">
+
+                  {/* Top Row: Title + Maximize/Close */}
+                  <div className="flex justify-between items-center px-4 py-3 border-b border-border/40">
+                    <h2 className="text-sm font-heading font-bold flex items-center gap-2 text-foreground/80">
+                      <span className="text-lg">👁️</span> Live Preview
+                    </h2>
+                    <div className="flex gap-2">
+                      <button
+                        className="text-xs border px-3 py-1.5 rounded-md hover:bg-accent transition-colors hidden lg:block bg-background"
+                        // ... (Maximize logic remains, just verifying correct nesting)
+                        onClick={() => {
+                          const dialog = document.createElement('dialog');
+                          dialog.className = 'fixed inset-0 z-[100] w-full h-full bg-background/95 backdrop-blur p-8 overflow-y-auto flex justify-center items-start';
+                          dialog.id = 'full-preview-dialog';
+                          // ...
+                          const container = document.createElement('div');
+                          container.className = 'relative w-full max-w-4xl bg-white shadow-2xl rounded-lg min-h-screen my-8';
+                          // ...
+                          const closeBtn = document.createElement('button');
+                          closeBtn.className = 'fixed top-4 right-4 z-[101] bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg hover:bg-primary/90';
+                          closeBtn.innerText = 'Close Preview';
+                          closeBtn.onclick = () => {
+                            document.body.removeChild(dialog);
+                          };
+                          // ...
+                          const content = document.querySelector('.print-content').cloneNode(true);
+                          content.style.transform = 'scale(1)';
+                          content.style.margin = '0 auto';
+
+                          container.appendChild(content);
+                          dialog.appendChild(closeBtn);
+                          dialog.appendChild(container);
+                          document.body.appendChild(dialog);
+                          dialog.showModal();
+                        }}
+                      >
+                        Maximize
+                      </button>
+                      <button className="text-xs border px-3 py-1.5 rounded-md hover:bg-accent lg:hidden" onClick={() => setIsPreviewOpen(false)}>
+                        Close
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bottom Row: Template Selector */}
+                  <div className="p-3 bg-muted/20 border-b">
                     <TemplateSelector activeTemplate={activeTemplate} onSelect={setActiveTemplate} />
-                    <button
-                      className="text-sm border px-3 py-1 rounded-md hover:bg-accent hidden lg:block"
-                      onClick={() => {
-                        const dialog = document.createElement('dialog');
-                        dialog.className = 'fixed inset-0 z-[100] w-full h-full bg-background/95 backdrop-blur p-8 overflow-y-auto flex justify-center items-start';
-                        dialog.id = 'full-preview-dialog';
-
-                        // Create container
-                        const container = document.createElement('div');
-                        container.className = 'relative w-full max-w-4xl bg-white shadow-2xl rounded-lg min-h-screen my-8';
-
-                        // Close button
-                        const closeBtn = document.createElement('button');
-                        closeBtn.className = 'fixed top-4 right-4 z-[101] bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg hover:bg-primary/90';
-                        closeBtn.innerText = 'Close Preview';
-                        closeBtn.onclick = () => {
-                          document.body.removeChild(dialog);
-                        };
-
-                        // Cloning content (simple approach for now)
-                        // A better way would be using a Portal, but DOM cloning works for static preview
-                        const content = document.querySelector('.print-content').cloneNode(true);
-                        content.style.transform = 'scale(1)';
-                        content.style.margin = '0 auto';
-
-                        container.appendChild(content);
-                        dialog.appendChild(closeBtn);
-                        dialog.appendChild(container);
-                        document.body.appendChild(dialog);
-                        dialog.showModal();
-                      }}
-                    >
-                      Maximize
-                    </button>
-                    <button className="text-sm border px-3 py-1 rounded-md hover:bg-accent lg:hidden" onClick={() => setIsPreviewOpen(false)}>
-                      Close
-                    </button>
                   </div>
                 </div>
 
-                <div className="flex-1 bg-muted/30 rounded-xl p-8 overflow-y-auto flex justify-center border shadow-inner custom-scrollbar relative">
+                <div className="flex-1 p-8 overflow-y-auto flex justify-center custom-scrollbar relative">
                   {/* Print Container Wrapper */}
-                  <div ref={previewRef} className="print-content">
+                  <div ref={previewRef} className="print-content shadow-2xl">
                     <Preview />
                   </div>
                 </div>
@@ -168,7 +176,8 @@ const MainApp = ({ user }) => {
                 {isPreviewOpen ? '✏️' : '👁️'}
               </button>
             </div>
-          </Layout>
+          </div>
+
         ) : activePage === 'tracker' ? (
           <Layout>
             <JobTracker />
@@ -189,7 +198,7 @@ const MainApp = ({ user }) => {
           </Layout>
         ) : null}
       </div>
-    </div>
+    </div >
   );
 };
 

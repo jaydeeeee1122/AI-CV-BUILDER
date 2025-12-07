@@ -2,11 +2,16 @@ import React, { createContext, useContext, useState } from 'react';
 
 const TabsContext = createContext();
 
-export const Tabs = ({ defaultValue, className, children, ...props }) => {
+export const Tabs = ({ defaultValue, className, children, onValueChange, ...props }) => {
     const [activeTab, setActiveTab] = useState(defaultValue);
 
+    const handleTabChange = (val) => {
+        setActiveTab(val);
+        if (onValueChange) onValueChange(val);
+    };
+
     return (
-        <TabsContext.Provider value={{ activeTab, setActiveTab }}>
+        <TabsContext.Provider value={{ activeTab, setActiveTab: handleTabChange }}>
             <div className={`w-full ${className}`} {...props}>
                 {children}
             </div>

@@ -55,9 +55,11 @@ export const LandingPage = ({ onGetStarted, onLogin }) => {
                     {/* Hero Image/Preview */}
                     <div className="relative mx-auto max-w-5xl rounded-xl border bg-background shadow-2xl overflow-hidden aspect-video">
                         <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-secondary/10" />
-                        <div className="h-full w-full flex items-center justify-center text-muted-foreground bg-accent/20">
-                            [Interactive App Preview Screenshot]
-                        </div>
+                        <img
+                            src="/app-preview.png"
+                            alt="AI CV Builder Interface"
+                            className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-700"
+                        />
                     </div>
                 </div>
             </header>
@@ -135,23 +137,74 @@ export const LandingPage = ({ onGetStarted, onLogin }) => {
                 </div>
             </section>
 
-            {/* Pricing / CTA */}
+            {/* Pricing Section */}
             <section className="py-24 bg-secondary/30">
                 <div className="container px-4 text-center">
-                    <div className="mx-auto max-w-3xl rounded-3xl border bg-card p-12 shadow-xl">
-                        <h2 className="text-3xl font-bold tracking-tight mb-6">Ready to land your dream job?</h2>
-                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-w-lg mx-auto mb-10">
-                            {["Unlimited AI Rewrites", "ATS Compatibility Check", "PDF Downloads", "Cover Letter Generator"].map((item, i) => (
-                                <li key={i} className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                    <span>{item}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        <Button size="lg" className="w-full sm:w-auto px-12" onClick={onGetStarted}>
-                            Start Building for Free
-                        </Button>
-                        <p className="mt-4 text-sm text-muted-foreground">No credit card required to start.</p>
+                    <div className="mb-16">
+                        <h2 className="text-3xl font-bold tracking-tight mb-4">Simple, Transparent Pricing</h2>
+                        <p className="text-lg text-muted-foreground">Choose the plan that fits your career goals.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+                        {/* Free Tier */}
+                        <PricingCard
+                            title="Free"
+                            price="£0"
+                            period="forever"
+                            features={[
+                                "1 Basic CV",
+                                "Ollama AI (Local)",
+                                "Manual PDF Export"
+                            ]}
+                            buttonText="Get Started"
+                            onClick={onGetStarted}
+                        />
+
+                        {/* One-off Tier */}
+                        <PricingCard
+                            title="One-off"
+                            price="£4.99"
+                            period="per CV"
+                            highlighted={true}
+                            features={[
+                                "1 Premium CV",
+                                "ATS Match Score",
+                                "Unlimited AI Edits (Ollama)",
+                                "PDF Download"
+                            ]}
+                            buttonText="Buy Now"
+                            onClick={() => window.location.href = '#'}
+                        />
+
+                        {/* Weekly Tier */}
+                        <PricingCard
+                            title="Pro Weekly"
+                            price="£7.99"
+                            period="per week"
+                            features={[
+                                "2 Premium CVs / week",
+                                "Gemini AI Access (Pro)",
+                                "Cover Letter Generator",
+                                "Priority Support"
+                            ]}
+                            buttonText="Subscribe Weekly"
+                            onClick={() => window.location.href = '#'}
+                        />
+
+                        {/* Monthly Tier */}
+                        <PricingCard
+                            title="Pro Monthly"
+                            price="£24.99"
+                            period="per month"
+                            features={[
+                                "10 Premium CVs / month",
+                                "Gemini AI Access (Pro)",
+                                "All Pro Features",
+                                "Cancel Anytime"
+                            ]}
+                            buttonText="Subscribe Monthly"
+                            onClick={() => window.location.href = '#'}
+                        />
                     </div>
                 </div>
             </section>
@@ -182,6 +235,42 @@ const FeatureCard = ({ icon, title, desc }) => (
         </CardHeader>
         <CardContent>
             <CardDescription className="text-base">{desc}</CardDescription>
+        </CardContent>
+    </Card>
+);
+
+const PricingCard = ({ title, price, period, features, buttonText, highlighted = false, onClick }) => (
+    <Card className={`relative flex flex-col ${highlighted ? 'border-primary shadow-2xl scale-105 z-10' : 'border-border shadow-md bg-background/50'} transition-all duration-300`}>
+        {highlighted && (
+            <div className="absolute -top-4 inset-x-0 flex justify-center">
+                <span className="bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+                    Best Value
+                </span>
+            </div>
+        )}
+        <CardHeader className="text-center pb-2">
+            <CardTitle className="text-xl font-semibold mb-2">{title}</CardTitle>
+            <div className="flex items-baseline justify-center gap-1">
+                <span className="text-4xl font-bold">{price}</span>
+                {period !== 'forever' && <span className="text-muted-foreground text-sm">/{period}</span>}
+            </div>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col">
+            <ul className="space-y-3 mb-6 flex-1 text-left text-sm">
+                {features.map((feature, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                        <span>{feature}</span>
+                    </li>
+                ))}
+            </ul>
+            <Button
+                variant={highlighted ? "default" : "outline"}
+                className="w-full mt-auto"
+                onClick={onClick}
+            >
+                {buttonText}
+            </Button>
         </CardContent>
     </Card>
 );

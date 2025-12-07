@@ -81,7 +81,7 @@ export const ModernTemplate = ({ data }) => {
 
     return (
         <div style={styles.container} className="modern-template">
-            <header style={styles.header}>
+            <header style={styles.header} id="section-personal">
                 <h1 style={styles.name}>{personal.fullName}</h1>
                 <div style={styles.contact}>
                     {personal.email && <span>📧 {personal.email}</span>}
@@ -97,7 +97,7 @@ export const ModernTemplate = ({ data }) => {
 
             <div style={{ padding: '0 1rem' }}>
                 {experience && experience.length > 0 && (
-                    <section>
+                    <section id="section-experience">
                         <h3 style={styles.sectionTitle}>Experience</h3>
                         {experience.map((exp) => (
                             <div key={exp.id} style={styles.jobBlock}>
@@ -113,7 +113,7 @@ export const ModernTemplate = ({ data }) => {
                 )}
 
                 {education && education.length > 0 && (
-                    <section>
+                    <section id="section-education">
                         <h3 style={styles.sectionTitle}>Education</h3>
                         {education.map((edu) => (
                             <div key={edu.id} style={styles.jobBlock}>
@@ -128,7 +128,7 @@ export const ModernTemplate = ({ data }) => {
                 )}
 
                 {skills && skills.length > 0 && (
-                    <section>
+                    <section id="section-skills">
                         <h3 style={styles.sectionTitle}>Skills</h3>
                         <div style={styles.skillsGrid}>
                             {skills.map((skill, index) => (

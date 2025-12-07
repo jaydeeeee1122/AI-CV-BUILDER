@@ -15,7 +15,7 @@ export const CreditDisplay = ({ userId }) => {
                 .from('user_credits')
                 .select('balance')
                 .eq('user_id', userId)
-                .single();
+                .maybeSingle();
 
             if (data) {
                 setCredits(data.balance);

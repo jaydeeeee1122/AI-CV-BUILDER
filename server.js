@@ -169,56 +169,108 @@ app.post('/api/mock-payment-success', async (req, res) => {
     }
 });
 
+// --- AI LOGGING UTILITY ---
+
+async function logAITransaction({
+    userId,
+    actionType,
+    inputContext,
+    jobDescriptionKeywords = null,
+    aiPrompt,
+    aiResponse,
+    provider,
+    model
+}) {
+    // Fire and forget logging to avoid slowing down user response
+    try {
+        if (!userId) {
+            // If no user ID (e.g. guest), we might skip or log as anonymous if schema allows null user_id
+            // Schema has user_id reference auth.users, so it might fail if null.
+            // Let's log only if we have a userId or if we change schema to allow null.
+            // For now, let's skip if no userId to avoid FK errors.
+            console.log("Skipping AI Log: No User ID");
+            return;
+        }
+
+        const { error } = await supabase.from('ai_logs').insert({
+            user_id: userId,
+            action_type: actionType,
+            input_context: inputContext ? inputContext.substring(0, 5000) : null, // Limit size
+            job_description_keywords: jobDescriptionKeywords,
+            ai_prompt: aiPrompt, // Full prompt for training
+            ai_response: aiResponse,
+            provider,
+            model
+        });
+
+        if (error) console.error("AI Logging Error:", error);
+    } catch (err) {
+        console.error("AI Logging Exception:", err);
+    }
+}
+
 // --- AI ROUTES (Standardized) ---
 
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Middleware to check and deduct credits
+// Middleware to check credits & Enforcement Logic
 const checkCredits = async (req, res, next) => {
-    const { userId } = req.body; // Ensure frontend sends userId
+    // ... logic same as before ...
+    const { userId, provider = 'ollama', iteration = 0 } = req.body;
 
-    if (!userId) {
-        return res.status(401).json({ error: "User ID required for AI features" });
+    // 1. Free Tier / Ollama Check
+    if (provider === 'ollama') {
+        return next();
     }
 
-    try {
-        // Call the RPC function we created in Supabase
-        // This checks balance AND deducts in one atomic transaction
-        const { data: newBalance, error } = await supabase.rpc('deduct_credits', {
-            uid: userId,
-            amount: 10
-        });
-
-        if (error) {
-            console.error("Credit deduction error:", error);
-            if (error.message.includes('Insufficient credits')) {
-                return res.status(402).json({ error: "Insufficient credits. Please add more." });
-            }
-            return res.status(500).json({ error: "Transaction failed" });
+    // 2. Paid / Gemini Check
+    if (provider === 'gemini') {
+        if (!userId) {
+            return res.status(401).json({ error: "User login required for Premium AI" });
+        }
+        if (iteration < 3) {
+            // Strict enforcement or warning could go here
         }
 
-        console.log(`Credits deducted. New balance for ${userId}: ${newBalance}`);
-        req.newBalance = newBalance; // Pass to next handler if needed
-        next();
-    } catch (err) {
-        console.error("Middleware Error:", err);
-        res.status(500).json({ error: "Internal Server Error" });
+        try {
+            const { data: newBalance, error } = await supabase.rpc('deduct_credits', {
+                uid: userId,
+                amount: 10 // Cost of Gemini
+            });
+
+            if (error) {
+                if (error.message.includes('Insufficient credits')) {
+                    return res.status(402).json({ error: "Premium features require a paid plan or credits." });
+                }
+                throw error;
+            }
+            req.newBalance = newBalance;
+            next();
+        } catch (err) {
+            console.error("Credit Check Error:", err);
+            res.status(500).json({ error: "Payment verification failed" });
+        }
+        return;
     }
+    next();
 };
 
 app.post('/api/enhance', checkCredits, async (req, res) => {
     try {
-        const { text, instructions, provider, model } = req.body;
+        const { text, instructions, provider, model, userId } = req.body; // Ensure userId is passed from frontend
         // ... rest of the route remains same ...
 
         let prompt = "";
+        let inputContext = text;
+
         if (instructions && instructions.trim() !== "") {
             prompt = `You are a professional CV writer. Write a professional, impactful, and concise CV profile summary based on the following keywords and skills. Use action verbs. Return ONLY the summary text, do not include any explanations or quotes.
         
         Keywords/Skills: "${instructions}"
         ${text ? `Draft/Context: "${text}"` : ""}`;
+            inputContext = `Instructions: ${instructions}\nDraft: ${text}`;
         } else {
             prompt = `You are a professional CV writer. Rewrite the following text to be more professional, impactful, and concise. Use action verbs. Return ONLY the rewritten text, do not include any explanations or quotes.
             
@@ -228,6 +280,17 @@ app.post('/api/enhance', checkCredits, async (req, res) => {
         const service = AIProviderFactory.getService(provider, model);
         const enhancedText = await service.generate(prompt);
 
+        // LOGGING
+        logAITransaction({
+            userId,
+            actionType: 'enhance',
+            inputContext: inputContext,
+            aiPrompt: prompt,
+            aiResponse: enhancedText,
+            provider,
+            model
+        });
+
         res.json({ text: enhancedText.trim() });
     } catch (error) {
         console.error("Enhance Error:", error);
@@ -235,25 +298,22 @@ app.post('/api/enhance', checkCredits, async (req, res) => {
     }
 });
 
+// ... test-connection remains same ...
 app.post('/api/test-connection', async (req, res) => {
     try {
         const { provider, model } = req.body;
-        console.log(`Test Connection Request. Provider: ${provider}, Model: ${model}`);
-
         const service = AIProviderFactory.getService(provider, model);
-        // Simple prompt for connectivity check
         const response = await service.generate("Reply with exact phrase: 'Connection Successful'");
-
         res.json({ text: response.trim(), success: true });
     } catch (error) {
-        console.error("Connection Test Error:", error);
         res.status(500).json({ error: error.message, success: false });
     }
 });
 
+
 app.post('/api/analyze-cv', checkCredits, async (req, res) => {
     try {
-        const { cvText, jobDescription, provider, model } = req.body;
+        const { cvText, jobDescription, provider, model, userId } = req.body;
         console.log(`Analyze-CV Request. Provider: ${provider || 'gemini'}`);
 
         let promptParts = [];
@@ -275,6 +335,7 @@ app.post('/api/analyze-cv', checkCredits, async (req, res) => {
         `;
         promptParts.push(systemPrompt);
 
+        let jdContent = "";
         if (jobDescription.type === 'image') {
             const base64Data = jobDescription.content.split(',')[1];
             promptParts.push({
@@ -284,8 +345,10 @@ app.post('/api/analyze-cv', checkCredits, async (req, res) => {
                 }
             });
             promptParts.push("\nJob Description is in the image above.");
+            jdContent = "[Image Data]";
         } else {
             promptParts.push(`\nJob Description:\n"${jobDescription.content}"`);
+            jdContent = jobDescription.content;
         }
 
         const service = AIProviderFactory.getService(provider, model);
@@ -299,6 +362,21 @@ app.post('/api/analyze-cv', checkCredits, async (req, res) => {
             text = text.substring(jsonStart, jsonEnd + 1);
         }
 
+        // LOGGING
+        // For array prompts (multimodal), we might need to stringify.
+        const promptLog = typeof promptParts === 'string' ? promptParts : JSON.stringify(promptParts);
+
+        logAITransaction({
+            userId,
+            actionType: 'analyze_cv',
+            inputContext: `CV Length: ${cvText.length} chars`,
+            jobDescriptionKeywords: { contentSnippet: jdContent.substring(0, 200) }, // Simplified JD log
+            aiPrompt: promptLog,
+            aiResponse: text,
+            provider,
+            model
+        });
+
         res.json(JSON.parse(text));
 
     } catch (error) {
@@ -309,7 +387,7 @@ app.post('/api/analyze-cv', checkCredits, async (req, res) => {
 
 app.post('/api/rewrite-cv', checkCredits, async (req, res) => {
     try {
-        const { cvText, jobDescription, provider, model } = req.body;
+        const { cvText, jobDescription, provider, model, userId } = req.body;
 
         let promptParts = [];
         const systemPrompt = `You are an expert Professional CV Writer & ATS Optimizer. 
@@ -359,6 +437,7 @@ app.post('/api/rewrite-cv', checkCredits, async (req, res) => {
         `;
         promptParts.push(systemPrompt);
 
+        let jdContent = "";
         if (jobDescription.type === 'image') {
             const base64Data = jobDescription.content.split(',')[1];
             promptParts.push({
@@ -368,8 +447,10 @@ app.post('/api/rewrite-cv', checkCredits, async (req, res) => {
                 }
             });
             promptParts.push("\nTarget Job Description is provided in the image above.");
+            jdContent = "[Image Data]";
         } else {
             promptParts.push(`\nTarget Job Description:\n"${jobDescription.content}"`);
+            jdContent = jobDescription.content;
         }
 
         const service = AIProviderFactory.getService(provider, model);
@@ -382,6 +463,20 @@ app.post('/api/rewrite-cv', checkCredits, async (req, res) => {
             text = text.substring(jsonStart, jsonEnd + 1);
         }
 
+        // LOGGING
+        const promptLog = typeof promptParts === 'string' ? promptParts : JSON.stringify(promptParts);
+
+        logAITransaction({
+            userId,
+            actionType: 'rewrite_cv',
+            inputContext: `CV Length: ${cvText.length}`,
+            jobDescriptionKeywords: { contentSnippet: jdContent.substring(0, 200) },
+            aiPrompt: promptLog,
+            aiResponse: text,
+            provider,
+            model
+        });
+
         res.json(JSON.parse(text));
 
     } catch (error) {
@@ -392,7 +487,7 @@ app.post('/api/rewrite-cv', checkCredits, async (req, res) => {
 
 app.post('/api/generate-cover-letter', checkCredits, async (req, res) => {
     try {
-        const { userData, jobDescription, provider, model } = req.body;
+        const { userData, jobDescription, provider, model, userId } = req.body;
 
         const systemPrompt = `You are an expert Career Coach and Professional Resume Writer.
         Write a compelling, professional COVER LETTER for the candidate based on their CV data and the Job Description.
@@ -419,6 +514,17 @@ app.post('/api/generate-cover-letter', checkCredits, async (req, res) => {
 
         const service = AIProviderFactory.getService(provider, model);
         const text = await service.generate(systemPrompt);
+
+        // LOGGING
+        logAITransaction({
+            userId,
+            actionType: 'cover_letter',
+            inputContext: `User Data Keys: ${Object.keys(userData).join(',')}`,
+            aiPrompt: systemPrompt,
+            aiResponse: text,
+            provider,
+            model
+        });
 
         res.json({ coverLetter: text });
 
