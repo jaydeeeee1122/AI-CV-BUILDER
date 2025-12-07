@@ -235,10 +235,69 @@ app.post('/api/enhance', checkCredits, async (req, res) => {
     }
 });
 
+app.post('/api/test-connection', async (req, res) => {
+    try {
+        const { provider, model } = req.body;
+        console.log(`Test Connection Request. Provider: ${provider}, Model: ${model}`);
+
+        const service = AIProviderFactory.getService(provider, model);
+        // Simple prompt for connectivity check
+        const response = await service.generate("Reply with exact phrase: 'Connection Successful'");
+
+        res.json({ text: response.trim(), success: true });
+    } catch (error) {
+        console.error("Connection Test Error:", error);
+        res.status(500).json({ error: error.message, success: false });
+    }
+});
+
 app.post('/api/analyze-cv', checkCredits, async (req, res) => {
     try {
         const { cvText, jobDescription, provider, model } = req.body;
         console.log(`Analyze-CV Request. Provider: ${provider || 'gemini'}`);
+
+        let promptParts = [];
+        const systemPrompt = `You are an expert ATS (Applicant Tracking System) Analyzer.
+        Compare the Candidate's CV against the Job Description.
+        
+        CRITICAL: Return a VALID JSON object in this EXACT format:
+        {
+            "score": 85,
+            "matchLevel": "High", // Low, Medium, High
+            "missingKeywords": ["List", "Of", "Important", "Missing", "Keywords"],
+            "feedback": "A concise paragraph (3-4 sentences) explaining why the score is what it is and how to improve."
+        }
+        
+        Do not include markdown formatting like \`\`\`json. Just the raw JSON string.
+        
+        Candidate CV:
+        "${cvText}"
+        `;
+        promptParts.push(systemPrompt);
+
+        if (jobDescription.type === 'image') {
+            const base64Data = jobDescription.content.split(',')[1];
+            promptParts.push({
+                inlineData: {
+                    data: base64Data,
+                    mimeType: "image/jpeg"
+                }
+            });
+            promptParts.push("\nJob Description is in the image above.");
+        } else {
+            promptParts.push(`\nJob Description:\n"${jobDescription.content}"`);
+        }
+
+        const service = AIProviderFactory.getService(provider, model);
+        let text = await service.generate(promptParts);
+
+        // Cleanup potential markdown
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            text = text.substring(jsonStart, jsonEnd + 1);
+        }
 
         res.json(JSON.parse(text));
 

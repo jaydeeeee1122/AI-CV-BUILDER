@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { buyCredits } from '../services/stripeService';
 
 export const CreditDisplay = ({ userId }) => {
     const [credits, setCredits] = useState(0);
@@ -45,7 +46,7 @@ export const CreditDisplay = ({ userId }) => {
             className={`
                 flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all duration-300
                 ${credits < 10
-                    ? 'bg-red-50 border-red-200 text-red-700 animate-pulse'
+                    ? 'bg-red-50 border-red-200 text-red-700'
                     : 'bg-white/80 backdrop-blur-sm border-slate-200 text-slate-700 shadow-sm hover:shadow-md'
                 }
             `}
@@ -60,7 +61,7 @@ export const CreditDisplay = ({ userId }) => {
             {/* Quick Add Button if low */}
             {credits < 20 && (
                 <button
-                    onClick={() => window.location.href = '#pricing'} // Or trigger modal
+                    onClick={buyCredits}
                     className="ml-2 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs hover:scale-110 transition-transform"
                 >
                     +

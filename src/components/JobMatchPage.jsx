@@ -9,7 +9,7 @@ import { Progress } from "./ui/progress";
 import { Upload, FileText, CheckCircle2, AlertTriangle, Lightbulb, Sparkles, ArrowRight, Wand2 } from "lucide-react";
 
 // Set worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 export const JobMatchPage = ({ onNavigate }) => {
     const {

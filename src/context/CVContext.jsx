@@ -141,6 +141,13 @@ export const CVProvider = ({ children }) => {
         }));
     };
 
+    const updateSkills = (newSkills) => {
+        setCvData((prev) => ({
+            ...prev,
+            skills: newSkills
+        }));
+    };
+
 
 
     // New: Reorder function for drag-and-drop
@@ -160,7 +167,10 @@ export const CVProvider = ({ children }) => {
         setIsSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error("User not logged in");
+            if (!user) {
+                alert("You must be logged in to save.");
+                throw new Error("User not logged in");
+            }
 
             const payload = {
                 user_id: user.id,
@@ -192,11 +202,12 @@ export const CVProvider = ({ children }) => {
                 if (result.data[0].is_public) {
                     setPublicUrl(`${window.location.origin}/view/${result.data[0].id}`);
                 }
+                // alert('CV Saved Successfully!'); // Optional: Feedback
                 return result.data[0].id;
             }
         } catch (error) {
             console.error('Error saving CV:', error);
-            alert('Failed to save CV');
+            alert(`Failed to save CV: ${error.message}`);
         } finally {
             setIsSaving(false);
         }
@@ -209,9 +220,9 @@ export const CVProvider = ({ children }) => {
         }
 
         try {
-            // First fetch current status to toggle it (or just rely on local knowledge if we tracked it properly)
-            // For now, let's assume we want to flip it. But fetching is safer.
-            const { data: current } = await supabase.from('cvs').select('is_public').eq('id', savedId).single();
+            const { data: current, error: fetchError } = await supabase.from('cvs').select('is_public').eq('id', savedId).single();
+            if (fetchError) throw fetchError;
+
             const newStatus = !current.is_public;
 
             const { error } = await supabase
@@ -229,7 +240,7 @@ export const CVProvider = ({ children }) => {
             return newStatus;
         } catch (error) {
             console.error('Error toggling publish status:', error);
-            alert('Failed to update share status');
+            alert(`Failed to update share status: ${error.message}`);
         }
     };
 
@@ -329,6 +340,7 @@ export const CVProvider = ({ children }) => {
                 addEducation,
                 updateEducation,
                 removeEducation,
+                updateSkills,
                 reorderSection,
                 saveCV,
                 togglePublish,

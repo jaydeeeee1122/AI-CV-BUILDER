@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CVProvider, useCV } from './context/CVContext';
 import Editor from './components/Editor';
@@ -18,8 +18,8 @@ import { supabase } from './lib/supabase';
 import { TemplateSelector } from './components/templates/TemplateSelector';
 import { SettingsPage } from './components/SettingsPage';
 
-const Layout = ({ children }) => (
-  <main className="container" style={{ padding: '2rem 0', flex: 1 }}>
+const Layout = ({ children, className = "" }) => (
+  <main className={`container flex-1 flex flex-col min-h-0 ${className}`} style={{ paddingBottom: '2rem' }}>
     {children}
   </main>
 );
@@ -28,6 +28,7 @@ const Layout = ({ children }) => (
 const MainApp = ({ user }) => {
   const [activePage, setActivePage] = useState('dashboard');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const previewRef = useRef();
   const { activeTemplate, setActiveTemplate } = useCV();
 
   const handleLogout = async () => {
@@ -36,9 +37,9 @@ const MainApp = ({ user }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans">
+    <div className="h-screen flex flex-col bg-background font-sans overflow-hidden">
       {/* App Navbar */}
-      <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="flex-none w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
         <div className="container flex h-16 items-center justify-between">
           <div
             className="flex items-center gap-2 font-bold text-xl cursor-pointer"
@@ -87,51 +88,107 @@ const MainApp = ({ user }) => {
       </nav>
 
       {/* Main Content Area */}
-      <Layout>
+      {/* We use flex-1 min-h-0 to ensure children can scroll internally */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden pt-6">
         {activePage === 'dashboard' ? (
-          <Dashboard onNavigate={setActivePage} />
+          <div className="flex-1 overflow-y-auto min-h-0 container">
+            <Dashboard onNavigate={setActivePage} />
+          </div>
         ) : activePage === 'editor' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-6rem)] overflow-hidden">
-            <div className={`overflow-y-auto pr-4 ${isPreviewOpen ? 'hidden lg:block' : 'block'}`}>
-              <Editor />
-            </div>
-
-            <div className={`flex flex-col ${isPreviewOpen ? 'block' : 'hidden lg:flex'}`}>
-              <div className="sticky top-0 z-10 bg-background pb-4 border-b mb-4 flex justify-between items-center">
-                <h2 className="text-lg font-semibold">Live Preview</h2>
-                <div className="flex gap-2">
-                  <TemplateSelector activeTemplate={activeTemplate} onSelect={setActiveTemplate} />
-                  <button className="text-sm border px-3 py-1 rounded hover:bg-accent" onClick={() => setIsPreviewOpen(false)}>
-                    Actual Size
-                  </button>
+          <Layout className="h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full min-h-0">
+              {/* Editor Pane - Scrollable */}
+              <div className="order-2 lg:order-1 h-full flex flex-col min-h-0 bg-background/50 rounded-xl border border-border/50 shadow-sm overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-32">
+                  <Editor previewRef={previewRef} />
                 </div>
               </div>
 
-              <div className="flex-1 bg-zinc-700/50 rounded-lg p-8 overflow-hidden flex justify-center backdrop-blur-sm border border-white/10">
-                <Preview />
-              </div>
-            </div>
+              {/* Preview Pane - Sticky/Fixed */}
+              <div className={`order-1 lg:order-2 flex flex-col h-full min-h-0 ${isPreviewOpen ? 'fixed inset-0 z-50 bg-background p-4' : 'hidden lg:flex'}`} id="preview-section">
+                <div className="flex-none bg-background/95 backdrop-blur z-10 pb-4 border-b mb-4 flex justify-between items-center" id="preview-header">
+                  <h2 className="text-lg font-heading font-semibold flex items-center gap-2">
+                    <span className="text-primary">👁️</span> Live Preview
+                  </h2>
+                  <div className="flex gap-2">
+                    <TemplateSelector activeTemplate={activeTemplate} onSelect={setActiveTemplate} />
+                    <button
+                      className="text-sm border px-3 py-1 rounded-md hover:bg-accent hidden lg:block"
+                      onClick={() => {
+                        const dialog = document.createElement('dialog');
+                        dialog.className = 'fixed inset-0 z-[100] w-full h-full bg-background/95 backdrop-blur p-8 overflow-y-auto flex justify-center items-start';
+                        dialog.id = 'full-preview-dialog';
 
-            {/* Mobile Toggle */}
-            <button
-              className="lg:hidden fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center text-2xl"
-              onClick={() => setIsPreviewOpen(!isPreviewOpen)}
-            >
-              {isPreviewOpen ? '✏️' : '👁️'}
-            </button>
-          </div>
+                        // Create container
+                        const container = document.createElement('div');
+                        container.className = 'relative w-full max-w-4xl bg-white shadow-2xl rounded-lg min-h-screen my-8';
+
+                        // Close button
+                        const closeBtn = document.createElement('button');
+                        closeBtn.className = 'fixed top-4 right-4 z-[101] bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg hover:bg-primary/90';
+                        closeBtn.innerText = 'Close Preview';
+                        closeBtn.onclick = () => {
+                          document.body.removeChild(dialog);
+                        };
+
+                        // Cloning content (simple approach for now)
+                        // A better way would be using a Portal, but DOM cloning works for static preview
+                        const content = document.querySelector('.print-content').cloneNode(true);
+                        content.style.transform = 'scale(1)';
+                        content.style.margin = '0 auto';
+
+                        container.appendChild(content);
+                        dialog.appendChild(closeBtn);
+                        dialog.appendChild(container);
+                        document.body.appendChild(dialog);
+                        dialog.showModal();
+                      }}
+                    >
+                      Maximize
+                    </button>
+                    <button className="text-sm border px-3 py-1 rounded-md hover:bg-accent lg:hidden" onClick={() => setIsPreviewOpen(false)}>
+                      Close
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 bg-muted/30 rounded-xl p-8 overflow-y-auto flex justify-center border shadow-inner custom-scrollbar relative">
+                  {/* Print Container Wrapper */}
+                  <div ref={previewRef} className="print-content">
+                    <Preview />
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Toggle */}
+              <button
+                className="lg:hidden fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center text-2xl print:hidden hover:scale-105 transition-transform"
+                onClick={() => setIsPreviewOpen(!isPreviewOpen)}
+              >
+                {isPreviewOpen ? '✏️' : '👁️'}
+              </button>
+            </div>
+          </Layout>
         ) : activePage === 'tracker' ? (
-          <JobTracker />
+          <Layout>
+            <JobTracker />
+          </Layout>
         ) : activePage === 'match' ? (
-          <div className="max-w-7xl mx-auto">
-            <JobMatchPage onNavigate={setActivePage} />
-          </div>
+          <Layout>
+            <div className="max-w-7xl mx-auto">
+              <JobMatchPage onNavigate={setActivePage} />
+            </div>
+          </Layout>
         ) : activePage === 'cover-letter' ? (
-          <CoverLetterPage />
+          <Layout>
+            <CoverLetterPage />
+          </Layout>
         ) : activePage === 'settings' ? (
-          <SettingsPage />
+          <Layout>
+            <SettingsPage />
+          </Layout>
         ) : null}
-      </Layout>
+      </div>
     </div>
   );
 };

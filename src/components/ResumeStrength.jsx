@@ -13,45 +13,52 @@ export const ResumeStrength = () => {
         let score = 0;
         const suggestions = [];
 
-        // 1. Basics (20%)
+        // 1. Basics (15%) - Reduced from 20%
         if (personal.fullName) score += 5;
         if (personal.email) score += 5;
         if (personal.phone) score += 5;
-        if (personal.summary && personal.summary.length > 50) {
-            score += 5;
+
+        // 2. Summary (15%)
+        if (personal.summary && personal.summary.length > 100) {
+            score += 15;
         } else {
-            suggestions.push("Add a professional summary (50+ chars) to introduce yourself.");
+            suggestions.push("Expand your summary (100+ chars) to clearly state your value.");
         }
 
-        // 2. Experience (40%)
-        if (experience.length > 0) score += 20;
+        // 3. Experience (40%)
+        if (experience.length > 0) score += 10;
         else suggestions.push("Add at least one work experience.");
 
         if (experience.length >= 2) score += 10;
 
-        const detailedExp = experience.filter(e => e.description && e.description.length > 100);
+        // Quality Check: Look for numbers/metrics (e.g. "20%", "5 teams")
+        const hasMetrics = experience.some(e => /\d+|%/.test(e.description || ''));
+        if (hasMetrics) score += 10;
+        else suggestions.push("Include numbers or metrics in your experience (e.g., 'Increased sales by 20%').");
+
+        const detailedExp = experience.filter(e => e.description && e.description.length > 150);
         if (detailedExp.length === experience.length && experience.length > 0) {
             score += 10;
         } else if (experience.length > 0) {
-            suggestions.push("Describe your work achievements in more detail.");
+            suggestions.push("Describe your work achievements in more detail (150+ chars).");
         }
 
-        // 3. Skills (20%)
-        if (skills.length >= 3) score += 10;
-        else suggestions.push("List at least 3 key skills.");
+        // 4. Skills (15%)
+        if (skills.length >= 5) score += 5;
+        else suggestions.push("List at least 5 key skills.");
 
-        if (skills.length >= 6) score += 10;
+        if (skills.length >= 8) score += 10;
 
-        // 4. Education (20%)
-        if (education.length > 0) score += 20;
+        // 5. Education (15%)
+        if (education.length > 0) score += 15;
         else suggestions.push("Add your educational background.");
 
-        return { score, suggestions };
+        return { score: Math.min(100, score), suggestions };
     }, [cvData]);
 
     const getScoreColor = (s) => {
-        if (s < 50) return "text-red-500";
-        if (s < 80) return "text-amber-500";
+        if (s < 60) return "text-red-500";
+        if (s < 85) return "text-amber-500";
         return "text-green-500";
     };
 
@@ -60,7 +67,7 @@ export const ResumeStrength = () => {
             <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                        <TrendingUp size={16} /> Resume Strength
+                        <TrendingUp size={16} /> Resume Completeness
                     </CardTitle>
                     <span className={`text-2xl font-black ${getScoreColor(analysis.score)}`}>
                         {analysis.score}%
@@ -71,17 +78,12 @@ export const ResumeStrength = () => {
             <CardContent>
                 {analysis.suggestions.length > 0 ? (
                     <div className="space-y-2 mt-2">
-                        {analysis.suggestions.slice(0, 2).map((sugg, i) => (
+                        {analysis.suggestions.slice(0, 3).map((sugg, i) => (
                             <div key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
                                 <AlertCircle size={14} className="mt-0.5 text-amber-500 shrink-0" />
-                                <span>{sugg}</span>
+                                <span className="flex-1">{sugg}</span>
                             </div>
                         ))}
-                        {analysis.suggestions.length > 2 && (
-                            <p className="text-xs text-center text-muted-foreground mt-2">
-                                + {analysis.suggestions.length - 2} more improvements available
-                            </p>
-                        )}
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 text-green-600 text-sm font-medium mt-2">

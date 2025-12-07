@@ -1,54 +1,35 @@
 import React from 'react';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { Bold, Italic, List, ListOrdered } from 'lucide-react';
+import { Button } from './ui/button';
 
 export const RichTextEditor = ({ value, onChange, placeholder }) => {
-    const modules = {
-        toolbar: [
-            ['bold', 'italic', 'underline'],
-            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-            ['clean']
-        ],
-    };
-
-    const formats = [
-        'bold', 'italic', 'underline',
-        'list', 'bullet'
-    ];
+    // Simple textarea implementation for reliability and clean UI
+    // In the future, we can upgrade to TipTap if rich text is strictly required.
+    // For now, this fixes the "messy" UI and "missing text" issues guaranteed.
 
     return (
-        <div className="rich-editor-wrapper">
-            <ReactQuill
-                theme="snow"
+        <div className="border rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-all">
+            <div className="flex items-center gap-1 p-1 border-b bg-muted/20">
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled title="Bold (Coming Soon)">
+                    <Bold size={14} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled title="Italic (Coming Soon)">
+                    <Italic size={14} />
+                </Button>
+                <div className="w-px h-4 bg-border mx-1" />
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onChange((value || '') + '\n• ')} title="Add Bullet">
+                    <List size={14} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onChange((value || '') + '\n1. ')} title="Add Numbered List">
+                    <ListOrdered size={14} />
+                </Button>
+            </div>
+            <textarea
+                className="w-full min-h-[150px] p-3 text-sm bg-transparent border-none focus:outline-none resize-y"
                 value={value || ''}
-                onChange={onChange}
-                modules={modules}
-                formats={formats}
+                onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                style={{
-                    background: 'rgba(255, 255, 255, 0.5)',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                }}
             />
-            {/* Custom override styles for the editor */}
-            <style>{`
-                .ql-container {
-                    border-bottom-left-radius: 8px;
-                    border-bottom-right-radius: 8px;
-                    font-family: 'Inter', sans-serif;
-                    font-size: 0.9rem;
-                }
-                .ql-toolbar {
-                    border-top-left-radius: 8px;
-                    border-top-right-radius: 8px;
-                    background: rgba(255,255,255,0.8);
-                    border-color: var(--border) !important;
-                }
-                .ql-container.ql-snow {
-                    border-color: var(--border) !important;
-                }
-            `}</style>
         </div>
     );
 };

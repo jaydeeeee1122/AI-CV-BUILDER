@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useCV } from '../context/CVContext';
 import { enhanceText } from '../services/aiService';
+import { useReactToPrint } from 'react-to-print';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -40,18 +41,28 @@ const SortableItem = ({ id, children }) => {
     );
 };
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { ExperienceSection } from './editor/ExperienceSection';
+import { EducationSection } from './editor/EducationSection';
+
 // --- Main Editor Component ---
-const Editor = () => {
+const Editor = ({ previewRef }) => {
     const {
-        cvData, updatePersonal, addExperience, updateExperience,
-        addEducation, updateEducation, apiKey, setApiKey, reorderSection,
+        cvData, updatePersonal, addExperience, updateExperience, removeExperience,
+        addEducation, updateEducation, removeEducation, updateSkills, apiKey, setApiKey, reorderSection,
         saveCV, togglePublish, isSaving, publicUrl, savedId,
-        userId, aiProvider, aiModel // Get these from context
+        userId, aiProvider, aiModel
     } = useCV();
 
     const { personal, experience, education, skills } = cvData;
     const [enhancingId, setEnhancingId] = useState(null);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [newSkill, setNewSkill] = useState('');
+
+    const handlePrint = useReactToPrint({
+        contentRef: previewRef,
+        documentTitle: `CV_${personal.fullName?.replace(/\s+/g, '_') || 'Resume'}`,
+    });
 
     // Draggable Sensors
     const sensors = useSensors(
@@ -70,7 +81,6 @@ const Editor = () => {
         if (!text || !apiKey) return;
         setEnhancingId(id);
         try {
-            // Pass userId and provider settings to the service
             const enhanced = await enhanceText(text, apiKey, {
                 userId,
                 provider: aiProvider,
@@ -92,12 +102,26 @@ const Editor = () => {
         }
     };
 
+    const handleAddSkill = () => {
+        if (newSkill.trim()) {
+            const currentSkills = Array.isArray(skills) ? skills : [];
+            updateSkills([...currentSkills, newSkill.trim()]);
+            setNewSkill('');
+        }
+    };
+
+    const handleRemoveSkill = (index) => {
+        const currentSkills = Array.isArray(skills) ? skills : [];
+        updateSkills(currentSkills.filter((_, i) => i !== index));
+    };
+
     return (
-        <div className="pb-20 space-y-6">
-            <div className="flex justify-between items-center sticky top-0 md:top-[-1rem] z-10 bg-background/95 backdrop-blur py-4 border-b mb-6">
-                <h2 className="text-2xl font-bold tracking-tight">Editor</h2>
+        <div className="pb-20 space-y-4">
+            {/* Header / Actions */}
+            <div className="flex justify-between items-center sticky top-0 md:top-[-1rem] z-10 bg-background/95 backdrop-blur py-4 border-b mb-4">
+                <h2 className="text-2xl font-bold tracking-tight font-heading">Editor</h2>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => window.print()} title="Export as PDF">
+                    <Button variant="default" size="sm" onClick={handlePrint} title="Export as PDF" className="bg-primary hover:bg-primary/90">
                         <Printer size={16} className="mr-2" /> PDF
                     </Button>
                     <Button variant="outline" size="sm" onClick={saveCV} disabled={isSaving}>
@@ -109,182 +133,157 @@ const Editor = () => {
                 </div>
             </div>
 
-            {/* Share Modal */}
-            {isShareModalOpen && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsShareModalOpen(false)}>
-                    <Card className="w-full max-w-md" onClick={e => e.stopPropagation()}>
-                        <CardHeader>
-                            <CardTitle>Share Your CV</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <p className="text-sm text-muted-foreground">Publish your CV to get a shareable link.</p>
-                            <div className="flex gap-2">
-                                <Input
-                                    readOnly
-                                    value={publicUrl ? `${window.location.origin}/view/${savedId}` : 'Not published yet'}
-                                />
-                                <Button onClick={togglePublish}>
-                                    {publicUrl ? 'Unpublish' : 'Publish'}
-                                </Button>
-                            </div>
-                            <Button variant="ghost" className="w-full" onClick={() => setIsShareModalOpen(false)}>Close</Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-
             <ResumeStrength />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Personal & Theme</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <ThemeSelector />
-                        <FontSelector />
-                    </div>
+            {/* Main Tabs Interface */}
+            <Tabs defaultValue="personal" className="w-full">
+                <TabsList className="grid w-full grid-cols-5 mb-4">
+                    <TabsTrigger value="personal">Profile</TabsTrigger>
+                    <TabsTrigger value="media">Media</TabsTrigger>
+                    <TabsTrigger value="experience">Experience</TabsTrigger>
+                    <TabsTrigger value="education">Education</TabsTrigger>
+                    <TabsTrigger value="skills">Skills</TabsTrigger>
+                </TabsList>
 
-                    <div className="space-y-2">
-                        <Label>Full Name</Label>
-                        <Input
-                            value={personal.fullName}
-                            onChange={(e) => updatePersonal('fullName', e.target.value)}
-                            placeholder="John Doe"
-                        />
-                    </div>
+                {/* Personal & Design Content */}
+                <TabsContent value="personal">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Personal Details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <ThemeSelector />
+                                <FontSelector />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Full Name</Label>
+                                <Input
+                                    value={personal.fullName}
+                                    onChange={(e) => updatePersonal('fullName', e.target.value)}
+                                    placeholder="John Doe"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Email</Label>
+                                <Input
+                                    value={personal.email}
+                                    onChange={(e) => updatePersonal('email', e.target.value)}
+                                    placeholder="john@example.com"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Summary</Label>
+                                <textarea
+                                    className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={personal.summary}
+                                    onChange={(e) => updatePersonal('summary', e.target.value)}
+                                    placeholder="Experienced professional with a track record of..."
+                                    rows={4}
+                                />
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => handleAIEnhance('summary', personal.summary, 'summary')}
+                                    disabled={enhancingId === 'summary'}
+                                    className="w-full"
+                                >
+                                    <Sparkles size={14} className="mr-2" />
+                                    {enhancingId === 'summary' ? 'Enhancing...' : 'Enhance with AI'}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                    <div className="space-y-2">
-                        <Label>Email</Label>
-                        <Input
-                            value={personal.email}
-                            onChange={(e) => updatePersonal('email', e.target.value)}
-                            placeholder="john@example.com"
-                        />
-                    </div>
+                {/* Media Content */}
+                <TabsContent value="media">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Photo & Media</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4">Upload a professional photo for your CV.</p>
+                            <PhotoUpload />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-                    <div className="space-y-2">
-                        <Label>Summary</Label>
-                        <textarea
-                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            value={personal.summary}
-                            onChange={(e) => updatePersonal('summary', e.target.value)}
-                            placeholder="Experienced professional..."
-                            rows={4}
-                        />
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleAIEnhance('summary', personal.summary, 'summary')}
-                            disabled={enhancingId === 'summary'}
-                            className="w-full"
-                        >
-                            <Sparkles size={14} className="mr-2" />
-                            {enhancingId === 'summary' ? 'Enhancing...' : 'Enhance with AI'}
-                        </Button>
-                    </div>
-                    <PhotoUpload />
-                </CardContent>
-            </Card>
+                {/* Experience Content */}
+                {/* Experience Content */}
+                <TabsContent value="experience">
+                    <ExperienceSection />
+                </TabsContent>
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle>Experience</CardTitle>
-                    <Button size="sm" variant="ghost" onClick={addExperience}><Plus size={16} /></Button>
-                </CardHeader>
-                <CardContent>
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, 'experience')}>
-                        <SortableContext items={experience.map(exp => exp.id)} strategy={verticalListSortingStrategy}>
-                            {experience.map((exp) => (
-                                <SortableItem key={exp.id} id={exp.id}>
-                                    <div className="space-y-3">
-                                        <Input
-                                            value={exp.title}
-                                            onChange={(e) => updateExperience(exp.id, 'title', e.target.value)}
-                                            placeholder="Job Title"
-                                            className="font-bold"
-                                        />
-                                        <Input
-                                            value={exp.company}
-                                            onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                                            placeholder="Company"
-                                        />
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Input
-                                                value={exp.startDate}
-                                                onChange={(e) => updateExperience(exp.id, 'startDate', e.target.value)}
-                                                placeholder="Start Date"
-                                            />
-                                            <Input
-                                                value={exp.endDate}
-                                                onChange={(e) => updateExperience(exp.id, 'endDate', e.target.value)}
-                                                placeholder="End Date"
-                                            />
-                                        </div>
+                {/* Education Content */}
+                <TabsContent value="education">
+                    <EducationSection />
+                </TabsContent>
 
-                                        <div className="space-y-2">
-                                            <Label className="text-xs text-muted-foreground">Description & Achievements</Label>
-                                            <RichTextEditor
-                                                value={exp.description}
-                                                onChange={(val) => updateExperience(exp.id, 'description', val)}
-                                            />
-                                            <PhrasePicker onSelect={(phrase) => updateExperience(exp.id, 'description', (exp.description || '') + ' ' + phrase)} />
+                {/* Skills Content */}
+                <TabsContent value="skills">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Skills</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="flex gap-2">
+                                <Input
+                                    value={newSkill}
+                                    onChange={(e) => setNewSkill(e.target.value)}
+                                    placeholder="Add a skill (e.g. React, Project Management)"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleAddSkill()}
+                                />
+                                <Button onClick={handleAddSkill}>Add</Button>
+                            </div>
 
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                onClick={() => handleAIEnhance(exp.id, exp.description, 'experience')}
-                                                disabled={enhancingId === exp.id}
-                                                className="w-full"
-                                            >
-                                                <Sparkles size={14} className="mr-2" />
-                                                {enhancingId === exp.id ? 'Enhancing...' : 'Enhance with AI'}
-                                            </Button>
-                                        </div>
+                            <div className="flex flex-wrap gap-2">
+                                {Array.isArray(skills) && skills.map((skill, index) => (
+                                    <div key={index} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm group animate-in fade-in zoom-in-95">
+                                        <span>{skill}</span>
+                                        <button
+                                            onClick={() => handleRemoveSkill(index)}
+                                            className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
                                     </div>
-                                </SortableItem>
-                            ))}
-                        </SortableContext>
-                    </DndContext>
+                                ))}
+                                {(!skills || skills.length === 0) && (
+                                    <p className="text-muted-foreground text-sm italic">No skills added yet.</p>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
-                    <Button variant="outline" className="w-full mt-4" onClick={addExperience}>
-                        <Plus size={16} className="mr-2" /> Add Experience
-                    </Button>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle>Education</CardTitle>
-                    <Button size="sm" variant="ghost" onClick={addEducation}><Plus size={16} /></Button>
-                </CardHeader>
-                <CardContent>
-                    {education.map((edu) => (
-                        <div key={edu.id} className="mb-6 pb-6 border-b last:border-0 last:pb-0 last:mb-0 space-y-3">
-                            <Input
-                                value={edu.school}
-                                onChange={(e) => updateEducation(edu.id, 'school', e.target.value)}
-                                placeholder="University / School"
-                                className="font-bold"
-                            />
-                            <Input
-                                value={edu.degree}
-                                onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
-                                placeholder="Degree"
-                            />
-                            <Input
-                                value={edu.year}
-                                onChange={(e) => updateEducation(edu.id, 'year', e.target.value)}
-                                placeholder="Graduation Year"
-                            />
-                        </div>
-                    ))}
-                    <Button variant="outline" className="w-full mt-4" onClick={addEducation}>
-                        <Plus size={16} className="mr-2" /> Add Education
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
+            {/* Share Modal */}
+            {
+                isShareModalOpen && (
+                    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsShareModalOpen(false)}>
+                        <Card className="w-full max-w-md" onClick={e => e.stopPropagation()}>
+                            <CardHeader>
+                                <CardTitle>Share Your CV</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm text-muted-foreground">Publish your CV to get a shareable link.</p>
+                                <div className="flex gap-2">
+                                    <Input
+                                        readOnly
+                                        value={publicUrl ? `${window.location.origin}/view/${savedId}` : 'Not published yet'}
+                                    />
+                                    <Button onClick={togglePublish}>
+                                        {publicUrl ? 'Unpublish' : 'Publish'}
+                                    </Button>
+                                </div>
+                                <Button variant="ghost" className="w-full" onClick={() => setIsShareModalOpen(false)}>Close</Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

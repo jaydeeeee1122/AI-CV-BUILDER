@@ -19,12 +19,10 @@ export const SettingsPage = () => {
 
         // Simple test call to enhance
         try {
-            const response = await fetch('http://localhost:3000/api/enhance', {
+            const response = await fetch('http://localhost:3000/api/test-connection', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    text: "Test connection",
-                    instructions: "Reply with 'Connection Successful'",
                     provider: aiProvider,
                     model: aiModel
                 })

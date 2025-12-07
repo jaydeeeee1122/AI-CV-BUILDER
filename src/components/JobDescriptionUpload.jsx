@@ -62,27 +62,20 @@ export const JobDescriptionUpload = () => {
     };
 
     return (
-        <div className="glass-panel" style={{ padding: '2rem', background: 'rgba(255,255,255,0.5)' }}>
-            <h3 style={{ marginBottom: '0.5rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>📄</span> Job Description
+        <div className="bg-white/50 backdrop-blur-xl border border-white/20 shadow-xl rounded-2xl p-8 transition-all hover:shadow-2xl">
+            <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                <span className="text-2xl">📄</span> Job Description
             </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+            <p className="text-sm text-muted-foreground mb-6">
                 Upload PDF/Image or paste text to get tailored analysis.
             </p>
 
-            <div className="form-group">
+            <div className="space-y-6">
                 <div
-                    style={{
-                        border: '2px dashed var(--border)',
-                        borderRadius: 'var(--radius)',
-                        padding: '1.5rem',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        background: 'var(--background)',
-                        transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                    className={`
+                        border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200
+                        ${loading ? 'border-primary/50 bg-primary/5' : 'border-muted-foreground/20 hover:border-primary hover:bg-primary/5'}
+                    `}
                     onClick={() => fileInputRef.current.click()}
                 >
                     <input
@@ -93,24 +86,31 @@ export const JobDescriptionUpload = () => {
                         onChange={handleFileUpload}
                     />
                     {loading ? (
-                        <span style={{ fontSize: '0.9rem', color: 'var(--primary)' }}>Processing...</span>
+                        <div className="flex flex-col items-center gap-2 text-primary animate-pulse">
+                            <span className="text-sm font-medium">Processing File...</span>
+                        </div>
                     ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
-                            <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>{fileName || "Upload File"}</span>
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <span className="font-medium text-foreground">{fileName || "Upload File"}</span>
+                            <span className="text-xs">
+                                {fileName ? 'Click to change' : 'Click to upload PDF or Image'}
+                            </span>
                         </div>
                     )}
                 </div>
-            </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-                <textarea
-                    className="form-textarea"
-                    rows="4"
-                    placeholder="Or paste job description here..."
-                    value={jobDescription?.type === 'text' ? jobDescription.content : ''}
-                    onChange={(e) => setJobDescription({ type: 'text', content: e.target.value, fileName: 'Manual Entry' })}
-                    style={{ resize: 'vertical', fontSize: '0.875rem', background: 'white' }}
-                />
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground block text-center">
+                        Or paste text directly
+                    </label>
+                    <textarea
+                        className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                        rows="6"
+                        placeholder="Paste the job description text here..."
+                        value={jobDescription?.type === 'text' ? jobDescription.content : ''}
+                        onChange={(e) => setJobDescription({ type: 'text', content: e.target.value, fileName: 'Manual Entry' })}
+                    />
+                </div>
             </div>
         </div>
     );
